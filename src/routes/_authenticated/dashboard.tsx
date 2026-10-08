@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Plus, ArrowUpRight, ArrowDownRight } from "lucide-react";
+import { Plus, ArrowUpRight, ArrowDownRight, Lightbulb } from "lucide-react";
+import { buildInsight } from "@/lib/insight";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAssets, useGoals, useHistory, useProfile, allocation } from "@/lib/data";
@@ -51,6 +52,15 @@ function Dashboard() {
   const rangeM = RANGES.find((r) => r.k === range)!.m;
   const trend = filterRange(rows, rangeM).map((r) => ({ label: shortMonth(r.month), total: r.total }));
   const goal = goals[0];
+  const insight = buildInsight({
+    age: profile?.birth_year ? new Date().getFullYear() - profile.birth_year : null,
+    region: profile?.region ?? null,
+    total,
+    cash: alloc.find((a) => a.key === "cash")?.value ?? 0,
+    monthlyExpense: profile?.monthly_expense ? Number(profile.monthly_expense) : null,
+    topGroupPct: alloc[0]?.pct ?? 0,
+    topGroupLabel: alloc[0]?.label,
+  });
 
   return (
     <div className="space-y-5">
@@ -65,6 +75,15 @@ function Dashboard() {
           <Delta label="前回記録比" v={lastInput} />
         </div>
       </section>
+
+      {assets.length > 0 && (
+        <section className="card-surface p-5">
+          <h2 className="mb-2 flex items-center gap-2 font-semibold"><Lightbulb className="h-4 w-4 text-gold" />あなたの資産の総評</h2>
+          <p className="font-medium">{insight.headline}</p>
+          <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">{insight.points.map((t) => <li key={t}>{t}</li>)}</ul>
+          <p className="mt-3 text-xs text-muted-foreground">※ 年齢・地域・資産から自動で算出した参考情報で、投資助言ではありません。</p>
+        </section>
+      )}
 
       {assets.length === 0 && (
         <Empty>
