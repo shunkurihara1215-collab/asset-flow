@@ -25,7 +25,7 @@ function Sim() {
   }, [assets]);
 
   const data = useMemo(() => simulate(initial, monthly, rate, years), [initial, monthly, rate, years]);
-  const last = data[data.length - 1];
+  const last = data[data.length - 1]!;
 
   return (
     <div className="space-y-5">
@@ -34,8 +34,8 @@ function Sim() {
         <section className="card-surface space-y-5 p-5">
           <div className="space-y-1.5"><Label>現在の資産（円）</Label><Input type="number" className="num" value={initial} onChange={(e) => setInitial(Number(e.target.value))} /></div>
           <div className="space-y-1.5"><Label>毎月の積立額（円）</Label><Input type="number" className="num" value={monthly} onChange={(e) => setMonthly(Number(e.target.value))} /></div>
-          <div className="space-y-3"><Label>想定利回り <span className="num ml-1">{rate.toFixed(1)}%</span></Label><Slider min={0} max={10} step={0.5} value={[rate]} onValueChange={(v) => setRate(v[0])} /></div>
-          <div className="space-y-3"><Label>期間 <span className="num ml-1">{years}年</span></Label><Slider min={1} max={40} step={1} value={[years]} onValueChange={(v) => setYears(v[0])} /></div>
+          <div className="space-y-3"><Label>想定利回り <span className="num ml-1">{rate.toFixed(1)}%</span></Label><Slider min={0} max={10} step={0.5} value={[rate]} onValueChange={(v) => setRate(v[0] ?? 0)} /></div>
+          <div className="space-y-3"><Label>期間 <span className="num ml-1">{years}年</span></Label><Slider min={1} max={40} step={1} value={[years]} onValueChange={(v) => setYears(v[0] ?? 1)} /></div>
         </section>
         <section className="card-surface p-5 lg:col-span-2">
           <div className="text-sm text-muted-foreground">{years}年後の予想資産</div>

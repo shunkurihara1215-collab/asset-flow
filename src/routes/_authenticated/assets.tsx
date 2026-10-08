@@ -66,7 +66,7 @@ function AssetsPage() {
               className="space-y-4"
               onSubmit={(e) => {
                 e.preventDefault();
-                if (!form.category_id) return toast.error("カテゴリーを選択してください");
+                if (!form.category_id) { toast.error("カテゴリーを選択してください"); return; }
                 save.mutate(form, { onSuccess: () => { setForm(null); toast.success("保存しました"); }, onError: (er) => toast.error(er.message) });
               }}
             >

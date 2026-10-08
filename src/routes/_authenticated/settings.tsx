@@ -54,7 +54,7 @@ function Settings() {
   async function changePw(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.auth.updateUser({ password: pw.next, current_password: pw.current } as never);
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     toast.success("パスワードを変更しました");
     setPw({ current: "", next: "" });
   }
@@ -68,7 +68,7 @@ function Settings() {
   async function deleteAccount() {
     if (!confirm("アカウントとすべてのデータを削除します。元に戻せません。よろしいですか？")) return;
     const r = await del();
-    if ("error" in r && r.error) return toast.error(r.error);
+    if ("error" in r && r.error) { toast.error(r.error); return; }
     await signOut();
   }
 

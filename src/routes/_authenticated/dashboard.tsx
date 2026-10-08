@@ -46,7 +46,7 @@ function Dashboard() {
   const rows = hist.map((h) => ({ month: h.month, total: Number(h.total) }));
   const nowKey = new Date().toISOString().slice(0, 7);
   const prevRows = rows.filter((r) => r.month.slice(0, 7) < nowKey);
-  const lastInput = prevRows.length ? total - prevRows[prevRows.length - 1].total : null;
+  const lastInput = prevRows.length ? total - prevRows[prevRows.length - 1]!.total : null;
   const alloc = allocation(assets);
   const rangeM = RANGES.find((r) => r.k === range)!.m;
   const trend = filterRange(rows, rangeM).map((r) => ({ label: shortMonth(r.month), total: r.total }));

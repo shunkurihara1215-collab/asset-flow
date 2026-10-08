@@ -56,7 +56,7 @@ export const useProfile = () =>
     queryFn: async () => {
       const { data: u } = await supabase.auth.getUser();
       const p = unwrap(await supabase.from("profiles").select("*").eq("id", u.user!.id).maybeSingle());
-      return { ...p, email: u.user?.email ?? "" };
+      return { ...(p as NonNullable<typeof p>), email: u.user?.email ?? "" };
     },
   });
 

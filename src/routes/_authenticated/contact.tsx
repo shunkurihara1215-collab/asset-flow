@@ -24,7 +24,7 @@ function Contact() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     const { error } = await supabase.from("inquiries").insert({ email: f.email, subject: f.subject, body: f.body });
-    if (error) return toast.error(error.message);
+    if (error) { toast.error(error.message); return; }
     setDone(true);
   }
 
