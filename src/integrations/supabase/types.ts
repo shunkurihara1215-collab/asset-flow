@@ -74,6 +74,8 @@ export type Database = {
           created_at: string
           id: string
           month: string
+          recorded_on: string | null
+          source: string
           total: number
           updated_at: string
           user_id: string
@@ -83,6 +85,8 @@ export type Database = {
           created_at?: string
           id?: string
           month: string
+          recorded_on?: string | null
+          source?: string
           total: number
           updated_at?: string
           user_id: string
@@ -92,6 +96,8 @@ export type Database = {
           created_at?: string
           id?: string
           month?: string
+          recorded_on?: string | null
+          source?: string
           total?: number
           updated_at?: string
           user_id?: string
@@ -294,6 +300,7 @@ export type Database = {
           monthly_investment: number | null
           notify_goal: boolean
           notify_reminder: boolean
+          region: string | null
           risk_tolerance: string | null
           updated_at: string
         }
@@ -307,6 +314,7 @@ export type Database = {
           monthly_investment?: number | null
           notify_goal?: boolean
           notify_reminder?: boolean
+          region?: string | null
           risk_tolerance?: string | null
           updated_at?: string
         }
@@ -320,6 +328,7 @@ export type Database = {
           monthly_investment?: number | null
           notify_goal?: boolean
           notify_reminder?: boolean
+          region?: string | null
           risk_tolerance?: string | null
           updated_at?: string
         }

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
@@ -51,7 +51,7 @@ function AiPage() {
       <PageHeader title="AIアドバイス" sub="登録データをもとに、分析と情報提供を行います" />
       {BETA_ALL_ACCESS && <p className="text-xs text-muted-foreground">ベータ期間中はすべての方がご利用いただけます（将来はプレミアム機能）。</p>}
       {!allowed ? (
-        <div className="card-surface p-6 text-sm">AIアドバイスはプレミアムプランの機能です。</div>
+        <div className="card-surface p-6 text-sm">AIアドバイスはプレミアムプランの機能です。<Link to="/settings" className="ml-1 font-medium underline">設定でプレミアムに切り替える（デモ）</Link></div>
       ) : (
         <section className="card-surface space-y-4 p-5">
           <div className="flex flex-wrap gap-2">

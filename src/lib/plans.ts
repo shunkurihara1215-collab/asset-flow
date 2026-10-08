@@ -11,8 +11,8 @@ const FEATURE_PLAN: Record<Feature, Plan> = {
   advancedAnalysis: "premium",
 };
 
-/** During beta, premium features are open to everyone. Flip to false when billing launches. */
-export const BETA_ALL_ACCESS = true;
+/** When true, premium features are open to everyone (beta). */
+export const BETA_ALL_ACCESS = false;
 
 export const FREE_GOAL_LIMIT = 1;
 
