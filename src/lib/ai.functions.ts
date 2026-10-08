@@ -32,28 +32,53 @@ export const askAdvisor = createServerFn({ method: "POST" })
 
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) return { error: "AI機能が設定されていません。" };
-    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/responses", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      headers: {
+        Authorization: `Bearer ${key}`,
+        "Lovable-API-Key": key,
+        "X-Lovable-AIG-SDK": "fetch",
+        "Content-Type": "application/json",
+      },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
-        messages: [
-          { role: "system", content: SYSTEM },
-          {
-            role: "user",
-            content: `ユーザーデータ(JSON): ${JSON.stringify(ctx)}\n\n質問: ${data.question || "現在の資産状況を総合的に分析してください。"}`,
-          },
-        ],
+        model: "openai/gpt-6-astra",
+        stream: true,
+        store: false,
+        reasoning: { effort: "low" },
+        instructions: SYSTEM,
+        input: `ユーザーデータ(JSON): ${JSON.stringify(ctx)}\n\n質問: ${data.question || "現在の資産状況を総合的に分析してください。"}`,
       }),
     });
     if (res.status === 429) return { error: "混み合っています。しばらくしてからお試しください。" };
     if (res.status === 402) return { error: "AIの利用枠を超えました。" };
-    if (!res.ok) {
+    if (!res.ok || !res.body) {
       console.error("AI gateway", res.status, await res.text());
       return { error: "AIの応答に失敗しました。" };
     }
-    const json = (await res.json()) as { choices?: { message?: { content?: string } }[] };
-    const answer = json.choices?.[0]?.message?.content ?? "";
+    // Consume SSE stream and accumulate output text.
+    let answer = "";
+    const reader = res.body.getReader();
+    const dec = new TextDecoder();
+    let buf = "";
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const lines = buf.split("\n");
+      buf = lines.pop() ?? "";
+      for (const line of lines) {
+        if (!line.startsWith("data:")) continue;
+        const payload = line.slice(5).trim();
+        if (!payload || payload === "[DONE]") continue;
+        try {
+          const ev = JSON.parse(payload) as { type?: string; delta?: string };
+          if (ev.type === "response.output_text.delta" && ev.delta) answer += ev.delta;
+        } catch {
+          /* ignore partial */
+        }
+      }
+    }
+    if (!answer) return { error: "AIの応答が空でした。" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     await supabaseAdmin.from("ai_advice_history").insert({ user_id: userId, question: data.question ?? null, answer });
