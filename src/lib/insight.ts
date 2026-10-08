@@ -20,7 +20,7 @@ export interface InsightInput {
   cash: number;
   monthlyExpense: number | null;
   topGroupPct: number; // largest allocation share, 0-100
-  topGroupLabel?: string;
+  topGroupLabel?: string | undefined;
 }
 
 export interface Insight { headline: string; points: string[] }
