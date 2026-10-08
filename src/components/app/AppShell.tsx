@@ -104,3 +104,12 @@ export function PageHeader({ title, sub, action }: { title: string; sub?: string
 export function Empty({ children }: { children: React.ReactNode }) {
   return <div className="card-surface p-8 text-center text-sm text-muted-foreground">{children}</div>;
 }
+
+export function Stat({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
+  return (
+    <div>
+      <div className="text-xs text-muted-foreground">{k}</div>
+      <div className={`num mt-0.5 text-lg font-semibold ${accent ? "text-accent-foreground" : ""}`}>{v}</div>
+    </div>
+  );
+}

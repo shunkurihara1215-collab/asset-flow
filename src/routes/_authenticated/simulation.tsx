@@ -6,8 +6,7 @@ import { Slider } from "@/components/ui/slider";
 import { useAssets } from "@/lib/data";
 import { simulate, yen } from "@/lib/finance";
 import { StackedSim } from "@/components/app/Charts";
-import { PageHeader } from "@/components/app/AppShell";
-import { Stat } from "./dashboard";
+import { PageHeader, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/simulation")({
   head: () => ({ meta: [{ title: "将来シミュレーション | Kizuki" }, { name: "description", content: "積立と利回りから将来の資産を試算" }] }),

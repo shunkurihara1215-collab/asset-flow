@@ -7,7 +7,7 @@ import { useAssets, useGoals, useHistory, useProfile, allocation } from "@/lib/d
 import { yen, signedYen, goalProgress } from "@/lib/finance";
 import { diffVsMonthsAgo, filterRange, shortMonth } from "@/lib/history";
 import { Donut, Legend, TrendArea } from "@/components/app/Charts";
-import { Empty } from "@/components/app/AppShell";
+import { Empty, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
   head: () => ({ meta: [{ title: "ホーム | Kizuki" }, { name: "description", content: "あなたの資産状況のダッシュボード" }] }),
@@ -124,11 +124,3 @@ function Dashboard() {
   );
 }
 
-export function Stat({ k, v, accent }: { k: string; v: string; accent?: boolean }) {
-  return (
-    <div>
-      <div className="text-xs text-muted-foreground">{k}</div>
-      <div className={`num mt-0.5 text-lg font-semibold ${accent ? "text-accent-foreground" : ""}`}>{v}</div>
-    </div>
-  );
-}

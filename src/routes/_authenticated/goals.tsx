@@ -11,8 +11,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { useAssets, useGoals, useAction, useSubscription } from "@/lib/data";
 import { yen, goalProgress, requiredMonthly, monthsToTarget, monthsBetween } from "@/lib/finance";
 import { canUse, FREE_GOAL_LIMIT } from "@/lib/plans";
-import { PageHeader, Empty } from "@/components/app/AppShell";
-import { Stat } from "./dashboard";
+import { PageHeader, Empty, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/goals")({
   head: () => ({ meta: [{ title: "目標 | Kizuki" }, { name: "description", content: "資産目標の設定と進捗" }] }),
