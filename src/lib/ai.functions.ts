@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { canUse, type Plan } from "@/lib/plans";
 
 const SYSTEM = `あなたは日本の個人向け資産形成アプリのアシスタントです。
 ユーザーのデータに基づき、現在の資産状況・目標達成状況・積立ペース・資産配分・改善ポイント・将来シミュレーションについて、情報提供と分析を中心に日本語で簡潔に回答してください。
@@ -17,7 +18,7 @@ export const askAdvisor = createServerFn({ method: "POST" })
       supabase.from("goals").select("name, target_amount, deadline, monthly_contribution"),
       supabase.from("subscriptions").select("plan").maybeSingle(),
     ]);
-    void sub; // plan gating hook: check sub.data?.plan when BETA ends
+    if (!canUse((sub.data?.plan ?? "free") as Plan, "aiAdvice")) return { error: "AI分析はプレミアムプランの機能です。" };
 
     const p = profile.data;
     const ctx = {
@@ -26,6 +27,7 @@ export const askAdvisor = createServerFn({ method: "POST" })
       monthly_expense: p?.monthly_expense,
       monthly_investment: p?.monthly_investment,
       risk_tolerance: p?.risk_tolerance,
+      region: p?.region,
       assets: assets.data,
       goals: goals.data,
     };
