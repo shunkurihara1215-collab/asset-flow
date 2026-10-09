@@ -38,6 +38,8 @@ function Settings() {
   const [editing, setEditing] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [f, setF] = useState({ display_name: "", birth_year: "", monthly_income: "", monthly_expense: "", monthly_investment: "", risk_tolerance: "medium", region: "", notify_reminder: true, notify_goal: true });
+  const [demoAllowed, setDemoAllowed] = useState(false);
+  useEffect(() => { const h = window.location.hostname; setDemoAllowed(h === "localhost" || h.startsWith("id-preview--") || h.startsWith("preview--")); }, []);
   const [pw, setPw] = useState({ current: "", next: "" });
 
   useEffect(() => {
@@ -153,8 +155,8 @@ function Settings() {
 
       <Section title="プラン">
         <div className="flex items-center justify-between gap-3">
-          <div><div className="font-medium">{PLAN_LABEL[sub?.plan ?? "free"]}</div><div className="text-xs text-muted-foreground">デモ用の切り替えです（実際の課金は発生しません）</div></div>
-          <div className="flex rounded-lg bg-muted p-1">
+          <div><div className="font-medium">{PLAN_LABEL[sub?.plan ?? "free"]}</div>{demoAllowed && <div className="text-xs text-muted-foreground">プレビュー環境専用のデモ切り替えです（課金は発生しません）</div>}</div>
+          {demoAllowed && <div className="flex rounded-lg bg-muted p-1">
             {(["free", "premium"] as const).map((pl) => (
               <button key={pl} onClick={async () => {
                 if (sub?.plan === pl) return;
@@ -164,7 +166,7 @@ function Settings() {
                 toast.success(`${PLAN_LABEL[pl]}に切り替えました`);
               }} className={`rounded-md px-3 py-1.5 text-sm ${sub?.plan === pl ? "bg-card font-medium shadow-sm" : "text-muted-foreground"}`}>{PLAN_LABEL[pl]}</button>
             ))}
-          </div>
+          </div>}
         </div>
         <p className="text-xs text-muted-foreground">プレミアムではAI分析・複数の目標が使えます。</p>
       </Section>

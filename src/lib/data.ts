@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
-import type { Plan } from "./plans";
+import { effectivePlan, type Plan } from "./plans";
 
 // Category groups shown in allocation charts.
 export const GROUPS: Record<string, { label: string; color: string }> = {
@@ -66,7 +66,7 @@ export const useSubscription = () =>
     queryKey: ["subscription"],
     queryFn: async () => {
       const s = unwrap(await supabase.from("subscriptions").select("*").maybeSingle());
-      return { plan: ((s as { plan?: Plan } | null)?.plan ?? "free") as Plan, row: s };
+      return { plan: effectivePlan(s as never) as Plan, row: s };
     },
   });
 
