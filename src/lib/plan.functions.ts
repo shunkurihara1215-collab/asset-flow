@@ -6,7 +6,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 /** Demo plan switching is allowed only on the editor preview / local dev hosts — never on the published site. */
 function isPreviewHost(host: string | undefined): boolean {
   if (!host) return false;
-  const h = host.split(":")[0];
+  const h = host.split(":")[0] ?? "";
   return h === "localhost" || h === "127.0.0.1" || h.startsWith("id-preview--") || h.startsWith("preview--");
 }
 
