@@ -15,6 +15,13 @@
       "when": 1791467992841,
       "tag": "0001_region_and_backdated_history",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1791556602594,
+      "tag": "0002_tokyo_month_snapshot",
+      "breakpoints": true
     }
   ]
 }
