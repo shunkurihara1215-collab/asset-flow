@@ -155,21 +155,56 @@ function Settings() {
 
       <Section title="プラン">
         <div className="flex items-center justify-between gap-3">
-          <div><div className="font-medium">{PLAN_LABEL[sub?.plan ?? "free"]}</div>{demoAllowed && <div className="text-xs text-muted-foreground">プレビュー環境専用のデモ切り替えです（課金は発生しません）</div>}</div>
-          {demoAllowed && <div className="flex rounded-lg bg-muted p-1">
-            {(["free", "premium"] as const).map((pl) => (
-              <button key={pl} onClick={async () => {
-                if (sub?.plan === pl) return;
-                const r = await switchPlan({ data: { plan: pl } });
-                if ("error" in r && r.error) { toast.error(r.error); return; }
-                await qc.invalidateQueries({ queryKey: ["subscription"] });
-                toast.success(`${PLAN_LABEL[pl]}に切り替えました`);
-              }} className={`rounded-md px-3 py-1.5 text-sm ${sub?.plan === pl ? "bg-card font-medium shadow-sm" : "text-muted-foreground"}`}>{PLAN_LABEL[pl]}</button>
-            ))}
-          </div>}
+          <div>
+            <div className="font-medium">{PLAN_LABEL[sub?.plan ?? "free"]}</div>
+            {sub?.row?.cancel_at_period_end && sub?.row?.current_period_end && (
+              <div className="text-xs text-muted-foreground">解約予定：{new Date(sub.row.current_period_end).toLocaleDateString("ja-JP")}まで利用できます</div>
+            )}
+            {!sub?.row?.cancel_at_period_end && sub?.plan === "premium" && sub?.row?.current_period_end && (
+              <div className="text-xs text-muted-foreground">次回更新日：{new Date(sub.row.current_period_end).toLocaleDateString("ja-JP")}</div>
+            )}
+          </div>
+          {sub?.plan !== "premium" && (
+            <Button onClick={() => setCheckoutOpen(true)}>プレミアムに申し込む</Button>
+          )}
+          {sub?.row?.provider === "stripe" && (
+            <Button variant="outline" onClick={openPortal} disabled={portalLoading}>
+              {portalLoading ? "開いています…" : "お支払い・解約の管理"}
+            </Button>
+          )}
         </div>
-        <p className="text-xs text-muted-foreground">プレミアムではAI分析・複数の目標が使えます。</p>
+        {sub?.plan !== "premium" && (
+          <p className="text-xs text-muted-foreground">プレミアム（月額¥500・税込）ではAIアドバイス・複数の目標・詳細なシミュレーションが使えます。</p>
+        )}
+        {demoAllowed && (
+          <div className="rounded-lg border border-dashed p-3">
+            <div className="mb-2 text-xs text-muted-foreground">プレビュー環境専用のデモ切り替えです（課金は発生しません）</div>
+            <div className="flex rounded-lg bg-muted p-1">
+              {(["free", "premium"] as const).map((pl) => (
+                <button key={pl} onClick={async () => {
+                  if (sub?.plan === pl) return;
+                  const r = await switchPlan({ data: { plan: pl } });
+                  if ("error" in r && r.error) { toast.error(r.error); return; }
+                  await qc.invalidateQueries({ queryKey: ["subscription"] });
+                  toast.success(`${PLAN_LABEL[pl]}に切り替えました`);
+                }} className={`rounded-md px-3 py-1.5 text-sm ${sub?.plan === pl ? "bg-card font-medium shadow-sm" : "text-muted-foreground"}`}>{PLAN_LABEL[pl]}</button>
+              ))}
+            </div>
+          </div>
+        )}
       </Section>
+
+      <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader><DialogTitle>プレミアムプランのお申し込み</DialogTitle></DialogHeader>
+          {checkoutOpen && (
+            <StripeEmbeddedCheckout
+              priceId="premium_monthly"
+              returnUrl={`${window.location.origin}/settings?checkout=done`}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
 
       <div className="card-surface divide-y">
         {([["/contact", "お問い合わせ"], ["/terms", "利用規約"], ["/privacy", "プライバシーポリシー"]] as const).map(([to, l]) => (
