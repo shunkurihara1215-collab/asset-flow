@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { effectivePlan, type Plan } from "./plans";
+import { getStripeEnvironmentSafe } from "./stripe";
 
 // Category groups shown in allocation charts.
 export const GROUPS: Record<string, { label: string; color: string }> = {
@@ -65,7 +66,17 @@ export const useSubscription = () =>
   useQuery({
     queryKey: ["subscription"],
     queryFn: async () => {
-      const s = unwrap(await supabase.from("subscriptions").select("*").maybeSingle());
+      // Sandbox and live rows coexist; read only the current environment's latest row.
+      const env = getStripeEnvironmentSafe();
+      const s = unwrap(
+        await supabase
+          .from("subscriptions")
+          .select("*")
+          .eq("environment", env)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle(),
+      );
       return { plan: effectivePlan(s as never) as Plan, row: s };
     },
   });
