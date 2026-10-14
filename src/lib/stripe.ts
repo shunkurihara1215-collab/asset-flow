@@ -4,7 +4,7 @@ import { loadStripe, Stripe } from "@stripe/stripe-js";
 // module has no cross-tree imports.
 export type StripeEnv = 'sandbox' | 'live';
 
-const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN;
+const clientToken = import.meta.env['VITE_PAYMENTS_CLIENT_TOKEN'] as string | undefined;
 
 // Derive environment from the token PREFIX, not its mere presence.
 // Missing/unknown → throw; never silently route to 'live'.
