@@ -14,8 +14,12 @@ import { useProfile, useSubscription, useAction } from "@/lib/data";
 import { PLAN_LABEL } from "@/lib/plans";
 import { deleteMyAccount } from "@/lib/account.functions";
 import { setDemoPlan } from "@/lib/plan.functions";
+import { createPortalSession } from "@/lib/payments.functions";
+import { getStripeEnvironmentSafe } from "@/lib/stripe";
 import { PREFECTURES } from "@/lib/insight";
 import { PageHeader } from "@/components/app/AppShell";
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { StripeEmbeddedCheckout } from "@/components/app/StripeEmbeddedCheckout";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "設定 | Kizuki" }, { name: "description", content: "プロフィールとアカウント設定" }] }),
@@ -41,6 +45,29 @@ function Settings() {
   const [demoAllowed, setDemoAllowed] = useState(false);
   useEffect(() => { const h = window.location.hostname; setDemoAllowed(h === "localhost" || h.startsWith("id-preview--") || h.startsWith("preview--")); }, []);
   const [pw, setPw] = useState({ current: "", next: "" });
+  const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  // Returning from checkout: refresh the plan and close the dialog.
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("checkout") === "done") {
+      setCheckoutOpen(false);
+      qc.invalidateQueries({ queryKey: ["subscription"] });
+      toast.success("お申し込みありがとうございます。プランに反映されるまで数秒かかる場合があります。");
+      window.history.replaceState(null, "", "/settings");
+    }
+  }, [qc]);
+
+  async function openPortal() {
+    setPortalLoading(true);
+    try {
+      const r = await createPortalSession({ data: { returnUrl: window.location.href, environment: getStripeEnvironmentSafe() } });
+      if ("error" in r && r.error) { toast.error(r.error); return; }
+      if ("url" in r) window.open(r.url, "_blank");
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (p) setF({
