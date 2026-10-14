@@ -29,6 +29,13 @@
       "when": 1791556636053,
       "tag": "0003_revoke_definer_exec",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1791967903344,
+      "tag": "0004_stripe_subscription_columns",
+      "breakpoints": true
     }
   ]
 }

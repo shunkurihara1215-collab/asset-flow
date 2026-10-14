@@ -4,6 +4,7 @@ import { Home, Wallet, LineChart, Target, PieChart, Sparkles, Settings, LogOut, 
 import { supabase } from "@/integrations/supabase/client";
 import { useSubscription } from "@/lib/data";
 import { PLAN_LABEL } from "@/lib/plans";
+import { PaymentTestModeBanner } from "./PaymentTestModeBanner";
 
 const NAV = [
   { to: "/dashboard", label: "ホーム", icon: Home },
@@ -58,6 +59,7 @@ export function AppShell() {
       </aside>
 
       <div className="flex-1 pb-24 lg:pb-0">
+        <PaymentTestModeBanner />
         <header className="sticky top-0 z-20 flex items-center justify-between border-b bg-background/90 px-4 py-3 backdrop-blur lg:hidden">
           <Link to="/dashboard" className="flex items-center gap-2">
             <span className="grid h-7 w-7 place-items-center rounded-md bg-primary font-display text-sm font-bold text-gold">K</span>

@@ -1,0 +1,19 @@
+const clientToken = import.meta.env.VITE_PAYMENTS_CLIENT_TOKEN;
+
+export function PaymentTestModeBanner() {
+  if (!clientToken) {
+    return (
+      <div className="w-full border-b border-destructive/30 bg-destructive/10 px-4 py-2 text-center text-sm text-destructive">
+        本番の決済がまだ設定されていません。決済を有効化するには公開設定を完了してください。
+      </div>
+    );
+  }
+  if (clientToken.startsWith("pk_test_")) {
+    return (
+      <div className="w-full border-b border-amber-300 bg-amber-100 px-4 py-2 text-center text-sm text-amber-900">
+        プレビューでの決済はすべてテストモードです（実際の課金は発生しません）。
+      </div>
+    );
+  }
+  return null;
+}
