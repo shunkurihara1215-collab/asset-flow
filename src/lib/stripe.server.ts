@@ -102,7 +102,7 @@ export async function verifyWebhook(req: Request, env: StripeEnv): Promise<{ typ
   }
 
   const age = Math.abs(Date.now() / 1000 - Number(timestamp));
-  if (age > 300) {
+  if (!Number.isFinite(age) || age > 300) {
     throw new Error("Webhook timestamp too old");
   }
 
@@ -120,7 +120,12 @@ export async function verifyWebhook(req: Request, env: StripeEnv): Promise<{ typ
   );
   const expected = Buffer.from(new Uint8Array(signed)).toString('hex');
 
-  if (!v1Signatures.includes(expected)) {
+  if (!v1Signatures.some((candidate) => {
+    if (candidate.length !== expected.length) return false;
+    let difference = 0;
+    for (let i = 0; i < expected.length; i++) difference |= candidate.charCodeAt(i) ^ expected.charCodeAt(i);
+    return difference === 0;
+  })) {
     throw new Error("Invalid webhook signature");
   }
 

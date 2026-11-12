@@ -14,7 +14,7 @@ import { TrendArea } from "@/components/app/Charts";
 import { PageHeader, Empty } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/history")({
-  head: () => ({ meta: [{ title: "推移 | Kizuki" }, { name: "description", content: "月ごとの資産推移と過去資産の登録" }] }),
+  head: () => ({ meta: [{ title: "推移 | Kizuki" }, { name: "description", content: "月ごとの資産推移と過去資産の登録" }, { property: "og:title", content: "推移 | Kizuki" }, { property: "og:description", content: "月ごとの資産推移と過去資産の登録" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: HistoryPage,
 });
 

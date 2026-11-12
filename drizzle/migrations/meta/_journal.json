@@ -36,6 +36,13 @@
       "when": 1791967903344,
       "tag": "0004_stripe_subscription_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1794454680318,
+      "tag": "0005_stripe_subscription_conflict_target",
+      "breakpoints": true
     }
   ]
 }

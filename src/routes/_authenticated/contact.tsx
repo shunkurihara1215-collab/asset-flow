@@ -11,7 +11,7 @@ import { useProfile } from "@/lib/data";
 import { PageHeader } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/contact")({
-  head: () => ({ meta: [{ title: "お問い合わせ | Kizuki" }, { name: "description", content: "Kizukiへのお問い合わせ" }] }),
+  head: () => ({ meta: [{ title: "お問い合わせ | Kizuki" }, { name: "description", content: "Kizukiへのお問い合わせ" }, { property: "og:title", content: "お問い合わせ | Kizuki" }, { property: "og:description", content: "Kizukiへのお問い合わせ" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Contact,
 });
 

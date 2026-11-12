@@ -62,13 +62,22 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       const isRecurring = stripePrice.type === "recurring";
 
       const customerId = await resolveOrCreateCustomer(stripe, { ...(email && { email }), userId });
+      if (isRecurring) {
+        const existing = await stripe.subscriptions.list({ customer: customerId, status: "all", limit: 100 });
+        if (existing.data.some((sub) => ["active", "trialing", "past_due", "incomplete"].includes(sub.status))) {
+          return { error: "既に契約があります。設定画面のお支払い管理からご確認ください。" };
+        }
+      }
 
       const session = await stripe.checkout.sessions.create({
         line_items: [{ price: stripePrice.id, quantity: 1 }],
         mode: isRecurring ? "subscription" : "payment",
         ui_mode: "embedded_page",
+        locale: "ja",
+        adaptive_pricing: { enabled: false },
         return_url: data.returnUrl,
         customer: customerId,
+        customer_update: { address: "auto" },
         // Seller is JP-based: tax calculation & collection only (no managed_payments).
         automatic_tax: { enabled: true },
         metadata: { userId },
@@ -81,9 +90,29 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
     }
   });
 
+export const getCheckoutStatus = createServerFn({ method: "POST" })
+  .middleware([requireSupabaseAuth])
+  .inputValidator((data: { sessionId: string; environment: StripeEnv }) => {
+    if (!/^cs_[a-zA-Z0-9_]{1,250}$/.test(data.sessionId)) throw new Error("Invalid session");
+    if (data.environment !== "sandbox" && data.environment !== "live") throw new Error("Invalid environment");
+    return data;
+  })
+  .handler(async ({ data, context }) => {
+    try {
+      const session = await createStripeClient(data.environment).checkout.sessions.retrieve(data.sessionId);
+      if (session.metadata?.['userId'] !== context.userId) return { error: "お支払い情報を確認できません" };
+      return { complete: session.status === "complete" && session.payment_status !== "unpaid" };
+    } catch (error) {
+      return { error: getStripeErrorMessage(error) };
+    }
+  });
+
 export const createPortalSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((data: { returnUrl?: string; environment: StripeEnv }) => data)
+  .inputValidator((data: { returnUrl?: string; environment: StripeEnv }) => {
+    if (data.environment !== "sandbox" && data.environment !== "live") throw new Error("Invalid environment");
+    return data;
+  })
   .handler(async ({ data, context }): Promise<PortalSessionResult> => {
     const { supabase, userId } = context;
 

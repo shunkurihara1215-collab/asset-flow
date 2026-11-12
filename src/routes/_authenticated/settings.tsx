@@ -14,7 +14,7 @@ import { useProfile, useSubscription, useAction } from "@/lib/data";
 import { PLAN_LABEL } from "@/lib/plans";
 import { deleteMyAccount } from "@/lib/account.functions";
 import { setDemoPlan } from "@/lib/plan.functions";
-import { createPortalSession } from "@/lib/payments.functions";
+import { createPortalSession, getCheckoutStatus } from "@/lib/payments.functions";
 import { getStripeEnvironmentSafe } from "@/lib/stripe";
 import { PREFECTURES } from "@/lib/insight";
 import { PageHeader } from "@/components/app/AppShell";
@@ -39,6 +39,7 @@ function Settings() {
   const navigate = useNavigate();
   const del = useServerFn(deleteMyAccount);
   const switchPlan = useServerFn(setDemoPlan);
+  const checkoutStatus = useServerFn(getCheckoutStatus);
   const [editing, setEditing] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [f, setF] = useState({ display_name: "", birth_year: "", monthly_income: "", monthly_expense: "", monthly_investment: "", risk_tolerance: "medium", region: "", notify_reminder: true, notify_goal: true });
@@ -50,13 +51,24 @@ function Settings() {
 
   // Returning from checkout: refresh the plan and close the dialog.
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("checkout") === "done") {
+    const search = new URLSearchParams(window.location.search);
+    const sessionId = search.get("session_id");
+    if (search.get("checkout") === "done" && sessionId) {
       setCheckoutOpen(false);
-      qc.invalidateQueries({ queryKey: ["subscription"] });
-      toast.success("お申し込みありがとうございます。プランに反映されるまで数秒かかる場合があります。");
+      checkoutStatus({ data: { sessionId, environment: getStripeEnvironmentSafe() } }).then((result) => {
+        if ("error" in result) { toast.error(result.error); return; }
+        if (result.complete) {
+          qc.invalidateQueries({ queryKey: ["subscription"] });
+          toast.success("お支払いが完了しました。プランを更新しています。");
+        } else toast.info("お支払いはまだ完了していません。");
+      }).catch((error: unknown) => toast.error(error instanceof Error ? error.message : "お支払い状況を確認できませんでした"));
       window.history.replaceState(null, "", "/settings");
+      const poll = window.setInterval(() => qc.invalidateQueries({ queryKey: ["subscription"] }), 1500);
+      const stop = window.setTimeout(() => window.clearInterval(poll), 30000);
+      return () => { window.clearInterval(poll); window.clearTimeout(stop); };
     }
-  }, [qc]);
+    return undefined;
+  }, [qc, checkoutStatus]);
 
   async function openPortal() {
     setPortalLoading(true);
@@ -64,6 +76,8 @@ function Settings() {
       const r = await createPortalSession({ data: { returnUrl: window.location.href, environment: getStripeEnvironmentSafe() } });
       if ("error" in r && r.error) { toast.error(r.error); return; }
       if ("url" in r) window.open(r.url, "_blank");
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "お支払い管理を開けませんでした");
     } finally {
       setPortalLoading(false);
     }
@@ -78,12 +92,15 @@ function Settings() {
     });
   }, [p]);
 
-  const save = useAction(async () => supabase.from("profiles").update({
+  const save = useAction(async () => {
+    if (!p?.id) throw new Error("プロフィールを読み込んでいます");
+    return supabase.from("profiles").update({
     display_name: f.display_name, birth_year: num(f.birth_year), monthly_income: num(f.monthly_income),
     monthly_expense: num(f.monthly_expense), monthly_investment: num(f.monthly_investment),
     risk_tolerance: f.risk_tolerance, region: f.region || null, notify_reminder: f.notify_reminder, notify_goal: f.notify_goal,
     updated_at: new Date().toISOString(),
-  }).eq("id", p!.id), ["profile"]);
+  }).eq("id", p.id);
+  }, ["profile"]);
 
   async function changePw(e: React.FormEvent) {
     e.preventDefault();
@@ -203,7 +220,7 @@ function Settings() {
         {sub?.plan !== "premium" && (
           <p className="text-xs text-muted-foreground">プレミアム（月額¥500・税込）ではAIアドバイス・複数の目標・詳細なシミュレーションが使えます。</p>
         )}
-        {demoAllowed && (
+        {demoAllowed && sub?.row?.provider !== "stripe" && (
           <div className="rounded-lg border border-dashed p-3">
             <div className="mb-2 text-xs text-muted-foreground">プレビュー環境専用のデモ切り替えです（課金は発生しません）</div>
             <div className="flex rounded-lg bg-muted p-1">
@@ -227,7 +244,7 @@ function Settings() {
           {checkoutOpen && (
             <StripeEmbeddedCheckout
               priceId="premium_monthly"
-              returnUrl={`${window.location.origin}/settings?checkout=done`}
+               returnUrl={`${window.location.origin}/settings?checkout=done&session_id={CHECKOUT_SESSION_ID}`}
             />
           )}
         </DialogContent>

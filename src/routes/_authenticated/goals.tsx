@@ -14,7 +14,7 @@ import { canUse, FREE_GOAL_LIMIT } from "@/lib/plans";
 import { PageHeader, Empty, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/goals")({
-  head: () => ({ meta: [{ title: "目標 | Kizuki" }, { name: "description", content: "資産目標の設定と進捗" }] }),
+  head: () => ({ meta: [{ title: "目標 | Kizuki" }, { name: "description", content: "資産目標の設定と進捗" }, { property: "og:title", content: "目標 | Kizuki" }, { property: "og:description", content: "資産目標の設定と進捗" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Goals,
 });
 

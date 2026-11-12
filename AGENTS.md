@@ -18,3 +18,4 @@
 - Premium access is derived by `effectivePlan()` (plan + status + current_period_end) from server-written `subscriptions`; demo plan switching is refused server-side outside preview/local hosts. Why: clients cannot self-upgrade on the published site.
 - Account deletion iterates an explicit list of user-owned tables in `account.functions.ts`; add every new user_id table there. Why: no orphaned personal data.
 - Monthly asset snapshots use Asia/Tokyo month boundaries. Why: avoid UTC month-start drift for Japanese users.
+- Stripe calls use the shared gateway client; subscription reads filter by environment, and signed webhooks use the generated admin client after verification. Why: keep test/live data isolated and persist payment events reliably.

@@ -9,7 +9,7 @@ import { StackedSim } from "@/components/app/Charts";
 import { PageHeader, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/simulation")({
-  head: () => ({ meta: [{ title: "将来シミュレーション | Kizuki" }, { name: "description", content: "積立と利回りから将来の資産を試算" }] }),
+  head: () => ({ meta: [{ title: "将来シミュレーション | Kizuki" }, { name: "description", content: "積立と利回りから将来の資産を試算" }, { property: "og:title", content: "将来シミュレーション | Kizuki" }, { property: "og:description", content: "積立と利回りから将来の資産を試算" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Sim,
 });
 

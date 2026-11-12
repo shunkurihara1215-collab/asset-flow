@@ -18,7 +18,9 @@ export const setDemoPlan = createServerFn({ method: "POST" })
     if (!isPreviewHost(host)) return { error: "この環境ではプランの切り替えはできません" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch = { plan: data.plan, status: "active", provider: "demo", current_period_end: null, updated_at: new Date().toISOString() };
-    const { data: rows, error } = await supabaseAdmin.from("subscriptions").update(patch).eq("user_id", context.userId).select("id");
+    const { data: paid } = await supabaseAdmin.from("subscriptions").select("id").eq("user_id", context.userId).eq("environment", "sandbox").eq("provider", "stripe").in("status", ["active", "trialing", "past_due", "incomplete"]).limit(1);
+    if (paid?.length) return { error: "テスト契約中は、お支払い管理からプランを変更してください" };
+    const { data: rows, error } = await supabaseAdmin.from("subscriptions").update(patch).eq("user_id", context.userId).eq("environment", "sandbox").or("provider.is.null,provider.eq.demo").select("id");
     if (error) return { error: "切り替えに失敗しました" };
     if (!rows?.length) {
       const ins = await supabaseAdmin.from("subscriptions").insert({ user_id: context.userId, ...patch });

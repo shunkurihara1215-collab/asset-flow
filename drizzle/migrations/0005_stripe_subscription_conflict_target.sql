@@ -1,0 +1,1 @@
+CREATE UNIQUE INDEX IF NOT EXISTS subscriptions_stripe_subscription_unique ON public.subscriptions (stripe_subscription_id);

@@ -9,14 +9,14 @@ const SYSTEM = `あなたは日本の個人向け資産形成アプリのアシ�
 
 export const askAdvisor = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
-  .inputValidator((d) => z.object({ question: z.string().max(1000).optional() }).parse(d))
+  .inputValidator((d) => z.object({ question: z.string().max(1000).optional(), environment: z.enum(["sandbox", "live"]) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
     const [profile, assets, goals, sub] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("assets").select("name, amount, category:asset_categories(name)"),
       supabase.from("goals").select("name, target_amount, deadline, monthly_contribution"),
-      supabase.from("subscriptions").select("plan, status, current_period_end").maybeSingle(),
+      supabase.from("subscriptions").select("plan, status, current_period_end").eq("user_id", userId).eq("environment", data.environment).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (!canUse(effectivePlan(sub.data), "aiAdvice")) return { error: "AI分析はプレミアムプランの機能です。" };
 

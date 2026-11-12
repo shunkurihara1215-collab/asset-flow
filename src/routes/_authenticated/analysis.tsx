@@ -5,7 +5,7 @@ import { Donut, Legend } from "@/components/app/Charts";
 import { PageHeader, Empty } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/analysis")({
-  head: () => ({ meta: [{ title: "分析 | Kizuki" }, { name: "description", content: "資産配分の分析" }] }),
+  head: () => ({ meta: [{ title: "分析 | Kizuki" }, { name: "description", content: "資産配分の分析" }, { property: "og:title", content: "分析 | Kizuki" }, { property: "og:description", content: "資産配分の分析" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Analysis,
 });
 

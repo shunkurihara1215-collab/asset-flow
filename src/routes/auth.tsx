@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 export const Route = createFileRoute("/auth")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "ログイン・新規登録 | Kizuki" },
       { name: "description", content: "Kizukiにログイン、または無料で新規登録。" },
       { property: "og:title", content: "ログイン | Kizuki" },

@@ -11,7 +11,7 @@ import { Donut, Legend, TrendArea } from "@/components/app/Charts";
 import { Empty, Stat } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/dashboard")({
-  head: () => ({ meta: [{ title: "ホーム | Kizuki" }, { name: "description", content: "あなたの資産状況のダッシュボード" }] }),
+  head: () => ({ meta: [{ title: "ホーム | Kizuki" }, { name: "description", content: "あなたの資産状況のダッシュボード" }, { property: "og:title", content: "ホーム | Kizuki" }, { property: "og:description", content: "あなたの資産状況のダッシュボード" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Dashboard,
 });
 

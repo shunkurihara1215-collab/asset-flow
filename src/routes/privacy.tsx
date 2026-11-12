@@ -3,6 +3,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 export const Route = createFileRoute("/privacy")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "プライバシーポリシー | Kizuki" },
       { name: "description", content: "Kizukiにおける個人情報の取り扱い。" },
       { property: "og:title", content: "プライバシーポリシー | Kizuki" },

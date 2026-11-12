@@ -7,12 +7,13 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { askAdvisor } from "@/lib/ai.functions";
+import { getStripeEnvironmentSafe } from "@/lib/stripe";
 import { useAiHistory, useSubscription } from "@/lib/data";
 import { canUse, BETA_ALL_ACCESS } from "@/lib/plans";
 import { PageHeader } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/ai")({
-  head: () => ({ meta: [{ title: "AIアドバイス | Kizuki" }, { name: "description", content: "AIによる資産状況の分析" }] }),
+  head: () => ({ meta: [{ title: "AIアドバイス | Kizuki" }, { name: "description", content: "AIによる資産状況の分析" }, { property: "og:title", content: "AIアドバイス | Kizuki" }, { property: "og:description", content: "AIによる資産状況の分析" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: AiPage,
 });
 
@@ -36,7 +37,7 @@ function AiPage() {
     setBusy(true);
     setAnswer(null);
     try {
-      const r = await ask({ data: { question } });
+      const r = await ask({ data: { question, environment: getStripeEnvironmentSafe() } });
       if ("error" in r && r.error) toast.error(r.error);
       else if ("answer" in r) { setAnswer(r.answer ?? ""); qc.invalidateQueries({ queryKey: ["ai"] }); }
     } catch {
@@ -51,7 +52,7 @@ function AiPage() {
       <PageHeader title="AIアドバイス" sub="登録データをもとに、分析と情報提供を行います" />
       {BETA_ALL_ACCESS && <p className="text-xs text-muted-foreground">ベータ期間中はすべての方がご利用いただけます（将来はプレミアム機能）。</p>}
       {!allowed ? (
-        <div className="card-surface p-6 text-sm">AIアドバイスはプレミアムプランの機能です。<Link to="/settings" className="ml-1 font-medium underline">設定でプレミアムに切り替える（デモ）</Link></div>
+        <div className="card-surface p-6 text-sm">AIアドバイスはプレミアムプランの機能です。<Link to="/settings" className="ml-1 font-medium underline">プレミアムに申し込む</Link></div>
       ) : (
         <section className="card-surface space-y-4 p-5">
           <div className="flex flex-wrap gap-2">

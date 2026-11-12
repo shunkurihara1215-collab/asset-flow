@@ -14,7 +14,7 @@ import { yen } from "@/lib/finance";
 import { PageHeader, Empty } from "@/components/app/AppShell";
 
 export const Route = createFileRoute("/_authenticated/assets")({
-  head: () => ({ meta: [{ title: "資産 | Kizuki" }, { name: "description", content: "資産の登録・編集" }] }),
+  head: () => ({ meta: [{ title: "資産 | Kizuki" }, { name: "description", content: "資産の登録・編集" }, { property: "og:title", content: "資産 | Kizuki" }, { property: "og:description", content: "資産の登録・編集" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: AssetsPage,
 });
 

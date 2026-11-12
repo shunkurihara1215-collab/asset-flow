@@ -5,6 +5,8 @@ import { Button } from "@/components/ui/button";
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary" },
       { title: "Kizuki — いくら持っていて、あといくら。資産形成サポートアプリ" },
       { name: "description", content: "総資産・推移・配分・目標・将来シミュレーション・AIアドバイスを一つに。初心者にもわかりやすい資産管理アプリ。" },
       { property: "og:title", content: "Kizuki — 資産形成サポートアプリ" },

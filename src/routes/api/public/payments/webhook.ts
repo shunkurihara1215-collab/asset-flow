@@ -1,18 +1,11 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createClient } from "@supabase/supabase-js";
 import { type StripeEnv, verifyWebhook } from "@/lib/stripe.server";
 
 // Defer client construction until first use so env var availability is not
 // assumed at module load time.
-let _supabase: ReturnType<typeof createClient> | null = null;
-function getSupabase() {
-  if (!_supabase) {
-    _supabase = createClient(
-      process.env.SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    );
-  }
-  return _supabase;
+async function getSupabase() {
+  const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
+  return supabaseAdmin;
 }
 
 function planFromPriceId(priceId: string | undefined): "free" | "premium" {
@@ -40,22 +33,24 @@ async function handleSubscriptionCreated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await getSupabase().from("subscriptions").upsert(
+  const { error } = await (await getSupabase()).from("subscriptions").upsert(
     {
       user_id: userId,
       stripe_subscription_id: subscription.id,
       stripe_customer_id: subscription.customer,
-      price_id: priceId,
+      price_id: priceId ?? null,
       plan: planFromPriceId(priceId),
       status: subscription.status,
       provider: "stripe",
       current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       environment: env,
+      cancel_at_period_end: subscription.cancel_at_period_end ?? false,
       updated_at: new Date().toISOString(),
     },
     { onConflict: "stripe_subscription_id" }
   );
+  if (error) throw new Error(error.message);
 }
 
 async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
@@ -64,12 +59,12 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
   const periodStart = item?.current_period_start ?? subscription.current_period_start;
   const periodEnd = item?.current_period_end ?? subscription.current_period_end;
 
-  await getSupabase()
+  const { error } = await (await getSupabase())
     .from("subscriptions")
     .update({
       status: subscription.status,
       plan: planFromPriceId(priceId),
-      price_id: priceId,
+      price_id: priceId ?? null,
       current_period_start: periodStart ? new Date(periodStart * 1000).toISOString() : null,
       current_period_end: periodEnd ? new Date(periodEnd * 1000).toISOString() : null,
       cancel_at_period_end: subscription.cancel_at_period_end || false,
@@ -77,10 +72,11 @@ async function handleSubscriptionUpdated(subscription: any, env: StripeEnv) {
     })
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  if (error) throw new Error(error.message);
 }
 
 async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
-  await getSupabase()
+  const { error } = await (await getSupabase())
     .from("subscriptions")
     .update({
       status: "canceled",
@@ -88,6 +84,7 @@ async function handleSubscriptionDeleted(subscription: any, env: StripeEnv) {
     })
     .eq("stripe_subscription_id", subscription.id)
     .eq("environment", env);
+  if (error) throw new Error(error.message);
 }
 
 async function handleWebhook(req: Request, env: StripeEnv) {
