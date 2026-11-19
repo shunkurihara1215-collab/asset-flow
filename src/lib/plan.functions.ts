@@ -1,21 +1,14 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeader } from "@tanstack/react-start/server";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-/** Demo plan switching is allowed only on the editor preview / local dev hosts — never on the published site. */
-function isPreviewHost(host: string | undefined): boolean {
-  if (!host) return false;
-  const h = host.split(":")[0] ?? "";
-  return h === "localhost" || h === "127.0.0.1" || h.startsWith("id-preview--") || h.startsWith("preview--");
-}
 
 export const setDemoPlan = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((d) => z.object({ plan: z.enum(["free", "premium"]) }).parse(d))
   .handler(async ({ data, context }) => {
-    const host = getRequestHeader("x-forwarded-host") ?? getRequestHeader("host");
-    if (!isPreviewHost(host)) return { error: "この環境ではプランの切り替えはできません" };
+    // Request headers are caller-controlled, so they never decide this. Disabled unless a
+    // server-only secret explicitly enables it (not set anywhere by default).
+    if (process.env["DEMO_PLAN_SWITCH"] !== "enabled") return { error: "この環境ではプランの切り替えはできません" };
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
     const patch = { plan: data.plan, status: "active", provider: "demo", current_period_end: null, updated_at: new Date().toISOString() };
     const { data: paid } = await supabaseAdmin.from("subscriptions").select("id").eq("user_id", context.userId).eq("environment", "sandbox").eq("provider", "stripe").in("status", ["active", "trialing", "past_due", "incomplete"]).limit(1);

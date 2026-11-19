@@ -1,5 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
+import { getRequestHeader } from "@tanstack/react-start/server";
+import { safeReturnUrl } from "@/lib/redirect";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
@@ -69,13 +71,15 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         }
       }
 
+      const returnUrl = safeReturnUrl(data.returnUrl, getRequestHeader("origin"));
+      if (!returnUrl) return { error: "不正な戻り先が指定されました" };
       const session = await stripe.checkout.sessions.create({
         line_items: [{ price: stripePrice.id, quantity: 1 }],
         mode: isRecurring ? "subscription" : "payment",
         ui_mode: "embedded_page",
         locale: "ja",
         adaptive_pricing: { enabled: false },
-        return_url: data.returnUrl,
+        return_url: returnUrl,
         customer: customerId,
         customer_update: { address: "auto" },
         // Seller is JP-based: tax calculation & collection only (no managed_payments).
@@ -128,10 +132,12 @@ export const createPortalSession = createServerFn({ method: "POST" })
     if (subError || !sub?.stripe_customer_id) return { error: "契約情報が見つかりません" };
 
     try {
+      const returnUrl = safeReturnUrl(data.returnUrl, getRequestHeader("origin"));
+      if (!returnUrl) return { error: "不正な戻り先が指定されました" };
       const stripe = createStripeClient(data.environment);
       const portal = await stripe.billingPortal.sessions.create({
         customer: sub.stripe_customer_id,
-        ...(data.returnUrl && { return_url: data.returnUrl }),
+        return_url: returnUrl,
       });
       return { url: portal.url };
     } catch (error) {

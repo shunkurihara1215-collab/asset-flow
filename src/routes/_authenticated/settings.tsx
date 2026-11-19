@@ -43,8 +43,8 @@ function Settings() {
   const [editing, setEditing] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
   const [f, setF] = useState({ display_name: "", birth_year: "", monthly_income: "", monthly_expense: "", monthly_investment: "", risk_tolerance: "medium", region: "", notify_reminder: true, notify_goal: true });
-  const [demoAllowed, setDemoAllowed] = useState(false);
-  useEffect(() => { const h = window.location.hostname; setDemoAllowed(h === "localhost" || h.startsWith("id-preview--") || h.startsWith("preview--")); }, []);
+  // Demo plan switching is disabled; premium comes only from a verified Stripe subscription.
+  const demoAllowed = false;
   const [pw, setPw] = useState({ current: "", next: "" });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);

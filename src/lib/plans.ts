@@ -23,13 +23,14 @@ export function canUse(plan: Plan, feature: Feature): boolean {
 
 export const PLAN_LABEL: Record<Plan, string> = { free: "無料プラン", premium: "プレミアム" };
 
-export type SubscriptionLike = { plan?: string | null; status?: string | null; current_period_end?: string | null } | null | undefined;
+export type SubscriptionLike = { plan?: string | null; provider?: string | null; status?: string | null; current_period_end?: string | null } | null | undefined;
 
 const ACTIVE = new Set(["active", "trialing", "past_due"]);
 
 /** Plan the user is actually entitled to: premium only while the contract is active and not past period end. */
 export function effectivePlan(sub: SubscriptionLike, now: Date = new Date()): Plan {
   if (!sub || sub.plan !== "premium") return "free";
+  if (sub.provider === "demo") return "free"; // demo rows never grant paid access
   const end = sub.current_period_end ? new Date(sub.current_period_end).getTime() : null;
   if (end !== null && (!Number.isFinite(end) || end <= now.getTime())) return "free";
   if (sub.status === "canceled") return end !== null ? "premium" : "free";

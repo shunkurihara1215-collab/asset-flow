@@ -16,7 +16,7 @@ export const askAdvisor = createServerFn({ method: "POST" })
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("assets").select("name, amount, category:asset_categories(name)"),
       supabase.from("goals").select("name, target_amount, deadline, monthly_contribution"),
-      supabase.from("subscriptions").select("plan, status, current_period_end").eq("user_id", userId).eq("environment", data.environment).order("created_at", { ascending: false }).limit(1).maybeSingle(),
+      supabase.from("subscriptions").select("plan, provider, status, current_period_end").eq("user_id", userId).eq("environment", data.environment).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
     if (!canUse(effectivePlan(sub.data), "aiAdvice")) return { error: "AI分析はプレミアムプランの機能です。" };
 

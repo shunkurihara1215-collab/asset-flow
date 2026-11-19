@@ -11,3 +11,10 @@ describe("effectivePlan", () => {
   it("access expires exactly at period end", () => expect(effectivePlan({ plan: "premium", status: "active", current_period_end: now.toISOString() }, now)).toBe("free"));
   it("payment retry grace period retains access", () => expect(effectivePlan({ plan: "premium", status: "past_due", current_period_end: "2026-11-01T00:00:00Z" }, now)).toBe("premium"));
 });
+
+describe("demo rows", () => {
+  it("never grant premium", () => {
+    expect(effectivePlan({ plan: "premium", provider: "demo", status: "active", current_period_end: null })).toBe("free");
+    expect(effectivePlan({ plan: "premium", provider: "stripe", status: "active", current_period_end: null })).toBe("premium");
+  });
+});
