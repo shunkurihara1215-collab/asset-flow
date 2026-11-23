@@ -4,6 +4,7 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { canUse } from "@/lib/plans";
 import { assertAccountAvailable, readBillingState } from "./billing.server";
 import { assertPaymentEnvironment } from "./billing-lifecycle";
+import { tokyoMonth } from "./history";
 
 const SYSTEM = `あなたは日本の個人向け資産形成アプリのアシスタントです。
 ユーザーのデータに基づき、現在の資産状況・目標達成状況・積立ペース・資産配分・改善ポイント・将来シミュレーションについて、情報提供と分析を中心に日本語で簡潔に回答してください。
@@ -33,7 +34,7 @@ export const askAdvisor = createServerFn({ method: "POST" })
 
     const p = profile.data;
     const ctx = {
-      age: p?.birth_year ? new Date().getFullYear() - p.birth_year : null,
+      age: p?.birth_year ? Number(tokyoMonth().slice(0, 4)) - p.birth_year : null,
       monthly_income: p?.monthly_income,
       monthly_expense: p?.monthly_expense,
       monthly_investment: p?.monthly_investment,

@@ -33,8 +33,19 @@ beforeEach(() => {
   mocks.billing.mockResolvedValue({ plan: "premium", environment: "sandbox" });
   mocks.available.mockResolvedValue(undefined); mocks.insert.mockResolvedValue({ error: null });
 });
-afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
+afterEach(() => { vi.useRealTimers(); vi.unstubAllEnvs(); vi.unstubAllGlobals(); });
 describe("AI verified data and persistence", () => {
+  it("AI age uses the same Japanese year as home across New Year", async () => {
+    vi.useFakeTimers(); vi.setSystemTime(new Date("2026-12-31T15:00:00Z"));
+    mocks.fetch.mockResolvedValue(stream([{ type: "response.output_text.delta", delta: "test" }, { type: "response.completed" }]));
+    await run();
+    const args = mocks.fetch.mock.calls[0];
+    const request = args?.[1] as { body: string } | undefined;
+    if (!request) throw new Error("AI request was not issued");
+    const body = JSON.parse(request.body) as { input: string };
+    const context = JSON.parse(body.input.split("\n\n")[0]?.replace("ユーザーデータ(JSON): ", "") ?? "{}") as { age?: number };
+    expect(context.age).toBe(37);
+  });
   it("failed asset read stops analysis before provider call", async () => {
     const result = await run(true);
     expect(result.error).toContain("取得できませんでした");
