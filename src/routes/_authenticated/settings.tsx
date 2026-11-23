@@ -20,6 +20,7 @@ import { PREFECTURES } from "@/lib/insight";
 import { PageHeader } from "@/components/app/AppShell";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { StripeEmbeddedCheckout } from "@/components/app/StripeEmbeddedCheckout";
+import { PREMIUM_PRICING } from "@/lib/premium-pricing";
 
 export const Route = createFileRoute("/_authenticated/settings")({
   head: () => ({ meta: [{ title: "設定 | Kizuki" }, { name: "description", content: "プロフィールとアカウント設定" }, { property: "og:title", content: "設定 | Kizuki" }, { property: "og:description", content: "プロフィール・契約・アカウントを管理" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -226,7 +227,7 @@ function Settings() {
           )}
         </div>
         {sub?.plan !== "premium" && (
-          <p className="text-xs text-muted-foreground">プレミアム（月額¥500・税込）ではAIアドバイス・複数の目標・詳細なシミュレーションが使えます。</p>
+          <p className="text-xs text-muted-foreground">プレミアム（{PREMIUM_PRICING.label}）ではAIアドバイス・複数の目標・詳細なシミュレーションが使えます。</p>
         )}
         {demoAllowed && sub?.row?.provider !== "stripe" && (
           <div className="rounded-lg border border-dashed p-3">
@@ -249,9 +250,10 @@ function Settings() {
       <Dialog open={checkoutOpen} onOpenChange={setCheckoutOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader><DialogTitle>プレミアムプランのお申し込み</DialogTitle></DialogHeader>
+          <p className="text-sm text-muted-foreground">{PREMIUM_PRICING.label}</p>
           {checkoutOpen && (
             <StripeEmbeddedCheckout
-              priceId="premium_monthly"
+              priceId={PREMIUM_PRICING.priceId}
                returnUrl={`${window.location.origin}/settings?checkout=done&session_id={CHECKOUT_SESSION_ID}`}
             />
           )}

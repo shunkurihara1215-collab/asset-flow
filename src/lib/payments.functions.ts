@@ -5,6 +5,7 @@ import { safeReturnUrl } from "@/lib/redirect";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
 import { assertAccountAvailable, configuredPaymentEnvironment } from "./billing.server";
 import { assertPaymentEnvironment } from "./billing-lifecycle";
+import { assertPremiumPrice, PREMIUM_PRICING } from "./premium-pricing";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
@@ -49,7 +50,7 @@ async function resolveOrCreateCustomer(
 export const createCheckoutSession = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .inputValidator((data: { priceId: string; returnUrl: string; environment: StripeEnv }) => {
-    if (!/^[a-zA-Z0-9_-]+$/.test(data.priceId)) throw new Error("Invalid priceId");
+    if (data.priceId !== PREMIUM_PRICING.priceId) throw new Error("Invalid priceId");
     if (data.environment !== "sandbox" && data.environment !== "live") throw new Error("Invalid environment");
     return data;
   })
@@ -65,6 +66,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
       const prices = await stripe.prices.list({ lookup_keys: [data.priceId] });
       const stripePrice = prices.data[0];
       if (!stripePrice) throw new Error("Price not found");
+      assertPremiumPrice(stripePrice);
       const isRecurring = stripePrice.type === "recurring";
 
       const customerId = await resolveOrCreateCustomer(stripe, { ...(email && { email }), userId });
@@ -86,7 +88,7 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         return_url: returnUrl,
         customer: customerId,
         customer_update: { address: "auto" },
-        // Seller is JP-based: tax calculation & collection only (no managed_payments).
+        // Tax is extracted from the validated inclusive price, never added to 550 JPY.
         automatic_tax: { enabled: true },
         metadata: { userId },
         ...(isRecurring && { subscription_data: { metadata: { userId } } }),
