@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_deletion_jobs: {
+        Row: {
+          lease_until: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          lease_until?: string | null
+          status: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          lease_until?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       ai_advice_history: {
         Row: {
           answer: string
@@ -289,6 +310,42 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_events: {
+        Row: {
+          attempts: number
+          environment: string
+          error_code: string | null
+          event_created: number
+          event_id: string
+          event_type: string
+          processed_at: string
+          status: string
+          subscription_id: string | null
+        }
+        Insert: {
+          attempts?: number
+          environment: string
+          error_code?: string | null
+          event_created: number
+          event_id: string
+          event_type: string
+          processed_at?: string
+          status: string
+          subscription_id?: string | null
+        }
+        Update: {
+          attempts?: number
+          environment?: string
+          error_code?: string | null
+          event_created?: number
+          event_id?: string
+          event_type?: string
+          processed_at?: string
+          status?: string
+          subscription_id?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           birth_year: number | null
@@ -342,6 +399,7 @@ export type Database = {
           current_period_start: string | null
           environment: string
           id: string
+          last_synced_at: string | null
           plan: Database["public"]["Enums"]["plan_tier"]
           price_id: string | null
           provider: string | null
@@ -360,6 +418,7 @@ export type Database = {
           current_period_start?: string | null
           environment?: string
           id?: string
+          last_synced_at?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           price_id?: string | null
           provider?: string | null
@@ -378,6 +437,7 @@ export type Database = {
           current_period_start?: string | null
           environment?: string
           id?: string
+          last_synced_at?: string | null
           plan?: Database["public"]["Enums"]["plan_tier"]
           price_id?: string | null
           provider?: string | null
@@ -414,12 +474,52 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      apply_payment_event: {
+        Args: {
+          p_cancel: boolean
+          p_customer_id: string
+          p_environment: string
+          p_event_created: number
+          p_event_id: string
+          p_event_type: string
+          p_fetched_at: string
+          p_period_end: string
+          p_period_start: string
+          p_price_id: string
+          p_status: string
+          p_subscription_id: string
+          p_user_id: string
+        }
+        Returns: string
+      }
+      claim_account_deletion: { Args: { p_user_id: string }; Returns: boolean }
+      create_goal_for_environment: {
+        Args: {
+          p_deadline: string
+          p_environment: string
+          p_monthly: number
+          p_name: string
+          p_rate: number
+          p_target: number
+          p_user_id: string
+        }
+        Returns: string
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
           _user_id: string
         }
         Returns: boolean
+      }
+      record_payment_failure: {
+        Args: {
+          p_environment: string
+          p_event_created: number
+          p_event_id: string
+          p_event_type: string
+        }
+        Returns: undefined
       }
     }
     Enums: {

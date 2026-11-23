@@ -1,22 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-
-/** Every user-owned table keyed by user_id. profiles/user_roles also cascade from the auth user. */
-const USER_TABLES = ["assets", "asset_history", "goals", "income_expenses", "subscriptions", "ai_advice_history", "notifications", "inquiries", "asset_categories", "user_roles"] as const;
+import { performAccountDeletion } from "./account-deletion.server";
+import { configuredPaymentEnvironment } from "./billing.server";
+import type { StripeEnv } from "./stripe.server";
 
 /** Deletes the caller's own account and all their data. */
 export const deleteMyAccount = createServerFn({ method: "POST" })
   .middleware([requireSupabaseAuth])
   .handler(async ({ context }) => {
-    const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    const uid = context.userId;
-    for (const t of USER_TABLES) {
-      const { error } = await supabaseAdmin.from(t).delete().eq("user_id", uid);
-      if (error) { console.error("delete", t, error.message); return { error: "削除に失敗しました。時間をおいて再度お試しください。" }; }
+    try {
+      const environments: StripeEnv[] = [];
+      if (process.env["STRIPE_SANDBOX_API_KEY"]) environments.push("sandbox");
+      if (process.env["STRIPE_LIVE_API_KEY"]) environments.push("live");
+      if (!environments.includes(configuredPaymentEnvironment())) return { error: "決済設定を確認できないため、退会を中止しました。" };
+      await performAccountDeletion(context.userId, environments);
+      return { ok: true };
+    } catch (error) {
+      return { error: error instanceof Error ? error.message : "退会処理に失敗しました。再度お試しください。" };
     }
-    const p = await supabaseAdmin.from("profiles").delete().eq("id", uid);
-    if (p.error) return { error: "削除に失敗しました。時間をおいて再度お試しください。" };
-    const { error } = await supabaseAdmin.auth.admin.deleteUser(uid);
-    if (error) return { error: "削除に失敗しました" };
-    return { ok: true };
   });

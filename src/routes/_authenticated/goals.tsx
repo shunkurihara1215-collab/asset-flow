@@ -12,6 +12,7 @@ import { useAssets, useGoals, useAction, useSubscription } from "@/lib/data";
 import { yen, goalProgress, requiredMonthly, monthsToTarget, monthsBetween } from "@/lib/finance";
 import { canUse, FREE_GOAL_LIMIT } from "@/lib/plans";
 import { PageHeader, Empty, Stat } from "@/components/app/AppShell";
+import { createGoal } from "@/lib/goals.functions";
 
 export const Route = createFileRoute("/_authenticated/goals")({
   head: () => ({ meta: [{ title: "目標 | Kizuki" }, { name: "description", content: "資産目標の設定と進捗" }, { property: "og:title", content: "目標 | Kizuki" }, { property: "og:description", content: "資産目標の設定と進捗" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
@@ -28,10 +29,10 @@ function Goals() {
   const current = assets.reduce((s, a) => s + Number(a.amount), 0);
   const canAdd = canUse(sub?.plan ?? "free", "multiGoals") || goals.length < FREE_GOAL_LIMIT;
 
-  const add = useAction(async (v: F) => supabase.from("goals").insert({
-    name: v.name, target_amount: Math.round(Number(v.target)), deadline: v.deadline,
-    monthly_contribution: Math.round(Number(v.monthly || 0)), expected_return: Number(v.rate || 0),
-  }), ["goals"]);
+  const add = useAction(async (v: F) => createGoal({ data: {
+    name: v.name, target: Math.round(Number(v.target)), deadline: v.deadline,
+    monthly: Math.round(Number(v.monthly || 0)), rate: Number(v.rate || 0),
+  } }), ["goals"]);
   const del = useAction(async (id: string) => supabase.from("goals").delete().eq("id", id), ["goals"]);
 
   return (

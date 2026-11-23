@@ -1,7 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
-import { canUse, effectivePlan } from "@/lib/plans";
+import { canUse } from "@/lib/plans";
+import { assertAccountAvailable, readBillingState } from "./billing.server";
+import { assertPaymentEnvironment } from "./billing-lifecycle";
 
 const SYSTEM = `あなたは日本の個人向け資産形成アプリのアシスタントです。
 ユーザーのデータに基づき、現在の資産状況・目標達成状況・積立ペース・資産配分・改善ポイント・将来シミュレーションについて、情報提供と分析を中心に日本語で簡潔に回答してください。
@@ -12,13 +14,18 @@ export const askAdvisor = createServerFn({ method: "POST" })
   .inputValidator((d) => z.object({ question: z.string().max(1000).optional(), environment: z.enum(["sandbox", "live"]) }).parse(d))
   .handler(async ({ data, context }) => {
     const { supabase, userId } = context;
-    const [profile, assets, goals, sub] = await Promise.all([
+    let billing;
+    try {
+      await assertAccountAvailable(userId);
+      billing = await readBillingState(supabase, userId);
+      assertPaymentEnvironment(data.environment, billing.environment);
+    } catch { return { error: "契約情報を確認できません。時間をおいて再度お試しください。" }; }
+    if (!canUse(billing.plan, "aiAdvice")) return { error: "AI分析はプレミアムプランの機能です。" };
+    const [profile, assets, goals] = await Promise.all([
       supabase.from("profiles").select("*").eq("id", userId).maybeSingle(),
       supabase.from("assets").select("name, amount, category:asset_categories(name)"),
       supabase.from("goals").select("name, target_amount, deadline, monthly_contribution"),
-      supabase.from("subscriptions").select("plan, provider, status, current_period_end").eq("user_id", userId).eq("environment", data.environment).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     ]);
-    if (!canUse(effectivePlan(sub.data), "aiAdvice")) return { error: "AI分析はプレミアムプランの機能です。" };
 
     const p = profile.data;
     const ctx = {

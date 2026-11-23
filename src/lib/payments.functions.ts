@@ -3,6 +3,8 @@ import { requireSupabaseAuth } from "@/integrations/supabase/auth-middleware";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { safeReturnUrl } from "@/lib/redirect";
 import { type StripeEnv, createStripeClient, getStripeErrorMessage } from "@/lib/stripe.server";
+import { assertAccountAvailable, configuredPaymentEnvironment } from "./billing.server";
+import { assertPaymentEnvironment } from "./billing-lifecycle";
 
 type CheckoutSessionResult = { clientSecret: string } | { error: string };
 type PortalSessionResult = { url: string } | { error: string };
@@ -54,6 +56,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
   .handler(async ({ data, context }): Promise<CheckoutSessionResult> => {
     try {
       const userId = context.userId;
+      assertPaymentEnvironment(data.environment, configuredPaymentEnvironment());
+      await assertAccountAvailable(userId);
       const { data: u } = await context.supabase.auth.getUser();
       const email = u.user?.email ?? undefined;
       const stripe = createStripeClient(data.environment);
@@ -88,6 +92,8 @@ export const createCheckoutSession = createServerFn({ method: "POST" })
         ...(isRecurring && { subscription_data: { metadata: { userId } } }),
       });
 
+      try { await assertAccountAvailable(userId); }
+      catch { await stripe.checkout.sessions.expire(session.id); return { error: "退会処理中のため、お申し込みを中止しました。" }; }
       return { clientSecret: session.client_secret ?? "" };
     } catch (error) {
       return { error: getStripeErrorMessage(error) };
@@ -103,6 +109,7 @@ export const getCheckoutStatus = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }) => {
     try {
+      assertPaymentEnvironment(data.environment, configuredPaymentEnvironment());
       const session = await createStripeClient(data.environment).checkout.sessions.retrieve(data.sessionId);
       if (session.metadata?.['userId'] !== context.userId) return { error: "お支払い情報を確認できません" };
       return { complete: session.status === "complete" && session.payment_status !== "unpaid" };
@@ -119,6 +126,8 @@ export const createPortalSession = createServerFn({ method: "POST" })
   })
   .handler(async ({ data, context }): Promise<PortalSessionResult> => {
     const { supabase, userId } = context;
+    try { assertPaymentEnvironment(data.environment, configuredPaymentEnvironment()); }
+    catch (error) { return { error: getStripeErrorMessage(error) }; }
 
     const { data: sub, error: subError } = await supabase
       .from("subscriptions")

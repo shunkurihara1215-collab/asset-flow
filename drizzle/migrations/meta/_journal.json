@@ -50,6 +50,20 @@
       "when": 1795067488557,
       "tag": "0006_enforce_free_goal_limit",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795418426057,
+      "tag": "0007_reliable_billing_lifecycle",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1795418683516,
+      "tag": "0008_serialize_billing_retirement",
+      "breakpoints": true
     }
   ]
 }

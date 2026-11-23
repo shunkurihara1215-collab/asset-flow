@@ -22,7 +22,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/u
 import { StripeEmbeddedCheckout } from "@/components/app/StripeEmbeddedCheckout";
 
 export const Route = createFileRoute("/_authenticated/settings")({
-  head: () => ({ meta: [{ title: "設定 | Kizuki" }, { name: "description", content: "プロフィールとアカウント設定" }] }),
+  head: () => ({ meta: [{ title: "設定 | Kizuki" }, { name: "description", content: "プロフィールとアカウント設定" }, { property: "og:title", content: "設定 | Kizuki" }, { property: "og:description", content: "プロフィール・契約・アカウントを管理" }, { property: "og:type", content: "website" }, { name: "twitter:card", content: "summary" }] }),
   component: Settings,
 });
 
@@ -48,6 +48,8 @@ function Settings() {
   const [pw, setPw] = useState({ current: "", next: "" });
   const [checkoutOpen, setCheckoutOpen] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deletionMessage, setDeletionMessage] = useState("");
 
   // Returning from checkout: refresh the plan and close the dialog.
   useEffect(() => {
@@ -118,10 +120,16 @@ function Settings() {
   }
 
   async function deleteAccount() {
-    if (!confirm("アカウントとすべてのデータを削除します。元に戻せません。よろしいですか？")) return;
-    const r = await del();
-    if ("error" in r && r.error) { toast.error(r.error); return; }
-    await signOut();
+    if (deleting || !confirm("有効な契約は即時解約し、確認後にアカウントとデータを削除します。自動返金はありません。元に戻せません。よろしいですか？")) return;
+    setDeleting(true);
+    setDeletionMessage("契約の停止を確認してから、アカウントを削除しています…");
+    try {
+      const r = await del();
+      if ("error" in r && r.error) { setDeletionMessage(r.error); toast.error(r.error); return; }
+      await signOut();
+    } catch {
+      setDeletionMessage("退会の結果を確認できませんでした。時間をおいて再度お試しください。");
+    } finally { setDeleting(false); }
   }
 
   const field = (k: keyof typeof f, label: string, type = "number") => (
@@ -255,7 +263,8 @@ function Settings() {
           <Link key={to} to={to} className="flex items-center justify-between px-5 py-4 text-sm hover:bg-muted">{l}<ChevronRight className="h-4 w-4 text-muted-foreground" /></Link>
         ))}
         <button onClick={signOut} className="w-full px-5 py-4 text-left text-sm hover:bg-muted">ログアウト</button>
-        <button onClick={deleteAccount} className="w-full px-5 py-4 text-left text-sm text-destructive hover:bg-muted">アカウント削除</button>
+        <Button variant="ghost" disabled={deleting} onClick={deleteAccount} className="w-full justify-start px-5 py-4 text-destructive">{deleting ? "退会処理中…" : "アカウント削除"}</Button>
+        {deletionMessage && <p role="status" className="px-5 py-3 text-sm text-muted-foreground">{deletionMessage}</p>}
       </div>
     </div>
   );
