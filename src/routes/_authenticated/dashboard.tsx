@@ -1,3 +1,4 @@
+import { DataGate } from "@/components/app/DataState";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, ArrowUpRight, ArrowDownRight, Lightbulb } from "lucide-react";
@@ -37,19 +38,23 @@ function Delta({ label, v }: { label: string; v: number | null }) {
 }
 
 function Dashboard() {
-  const { data: assets = [] } = useAssets();
-  const { data: hist = [] } = useHistory();
-  const { data: goals = [] } = useGoals();
-  const { data: profile } = useProfile();
+  const assetsQuery = useAssets();
+  const { data: assets = [] } = assetsQuery;
+  const historyQuery = useHistory();
+  const { data: hist = [] } = historyQuery;
+  const goalsQuery = useGoals();
+  const { data: goals = [] } = goalsQuery;
+  const profileQuery = useProfile();
+  const { data: profile } = profileQuery;
   const [range, setRange] = useState<(typeof RANGES)[number]["k"]>("6M");
 
   const total = assets.reduce((s, a) => s + Number(a.amount), 0);
   const rows = hist.map((h) => ({ month: h.month, total: Number(h.total) }));
   const nowKey = new Date().toISOString().slice(0, 7);
   const prevRows = rows.filter((r) => r.month.slice(0, 7) < nowKey);
-  const lastInput = prevRows.length ? total - prevRows[prevRows.length - 1]!.total : null;
+  const lastInput = prevRows.length ? total - (prevRows.at(-1)?.total ?? total) : null;
   const alloc = allocation(assets);
-  const rangeM = RANGES.find((r) => r.k === range)!.m;
+  const rangeM = (RANGES.find((r) => r.k === range)?.m ?? null);
   const trend = filterRange(rows, rangeM).map((r) => ({ label: shortMonth(r.month), total: r.total }));
   const goal = goals[0];
   const insight = buildInsight({
@@ -63,8 +68,9 @@ function Dashboard() {
   });
 
   return (
+    <DataGate queries={[assetsQuery, historyQuery, goalsQuery, profileQuery]} label="資産データ・履歴・目標・プロフィール">
     <div className="space-y-5">
-      <p className="text-sm text-muted-foreground">こんにちは、{profile?.display_name ?? ""}さん</p>
+      <p className="text-sm text-muted-foreground">{profile?.display_name ? `こんにちは、${profile.display_name}さん` : "こんにちは"}</p>
 
       <section className="bg-hero rounded-3xl p-6 text-primary-foreground sm:p-8">
         <div className="text-sm opacity-70">総資産</div>
@@ -140,6 +146,7 @@ function Dashboard() {
         )}
       </section>
     </div>
+    </DataGate>
   );
 }
 

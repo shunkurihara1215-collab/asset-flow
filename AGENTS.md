@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- Data read gates hide unverified balances on loading/error (including stale cache); writes confirm affected rows and use a synchronous per-action lock plus safe persistent errors before invalidating shared queries. Why: failed reads/writes must never resemble zero balances or saved/deleted data.
 - Pure finance/date math lives in `src/lib/finance.ts` and `src/lib/history.ts` (unit tested); UI only calls these. Why: keep logic testable and reusable.
 - Client data access uses the browser Supabase client with RLS via hooks in `src/lib/data.ts`; privileged or secret-requiring work (AI, account deletion) goes in `*.functions.ts` server functions with `requireSupabaseAuth`. Why: per-user isolation enforced in the database.
 - Current-month asset history is written by a DB trigger on `assets`; the client may only write past-month rows with `source = manual` (backdated snapshots). Why: history stays consistent with assets while allowing backfill.

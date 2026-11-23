@@ -1,3 +1,4 @@
+import { DataGate, ActionError } from "@/components/app/DataState";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -22,24 +23,28 @@ type Form = { id?: string; name: string; amount: string; category_id: string; me
 const blank: Form = { name: "", amount: "", category_id: "", memo: "" };
 
 function AssetsPage() {
-  const { data: assets = [] } = useAssets();
-  const { data: cats = [] } = useCategories();
+  const assetsQuery = useAssets();
+  const { data: assets = [] } = assetsQuery;
+  const catsQuery = useCategories();
+  const { data: cats = [] } = catsQuery;
   const [form, setForm] = useState<Form | null>(null);
   const keys = ["assets", "history"];
 
   const save = useAction(async (f: Form) => {
     const row = { name: f.name, amount: Math.round(Number(f.amount)), category_id: f.category_id, memo: f.memo || null };
     return f.id
-      ? supabase.from("assets").update({ ...row, updated_at: new Date().toISOString() }).eq("id", f.id)
-      : supabase.from("assets").insert(row);
+      ? supabase.from("assets").update({ ...row, updated_at: new Date().toISOString() }).eq("id", f.id).select("id").single()
+      : supabase.from("assets").insert(row).select("id").single();
   }, keys);
-  const del = useAction(async (id: string) => supabase.from("assets").delete().eq("id", id), keys);
+  const del = useAction(async (id: string) => supabase.from("assets").delete().eq("id", id).select("id").single(), keys, "delete");
 
   const total = assets.reduce((s, a) => s + Number(a.amount), 0);
 
   return (
+    <DataGate queries={[assetsQuery, catsQuery]} label="資産データ・カテゴリー">
     <div>
-      <PageHeader title="資産" sub={`合計 ${yen(total)}・${assets.length}件`} action={<Button onClick={() => setForm(blank)}><Plus />追加</Button>} />
+      <PageHeader title="資産" sub={`合計 ${yen(total)}・${assets.length}件`} action={<Button disabled={save.isPending || del.isPending} onClick={() => { save.reset(); setForm(blank); }}><Plus />追加</Button>} />
+      <ActionError error={del.error} />
       {assets.length === 0 ? (
         <Empty>まずは銀行口座や証券口座の残高を登録してみましょう。</Empty>
       ) : (
@@ -51,14 +56,14 @@ function AssetsPage() {
                 <div className="text-xs text-muted-foreground">{a.category?.name} ・ 更新 {new Date(a.updated_at).toLocaleDateString("ja-JP")}</div>
               </div>
               <div className="num text-right font-semibold">{yen(Number(a.amount))}</div>
-              <Button size="icon" variant="ghost" aria-label="編集" onClick={() => setForm({ id: a.id, name: a.name, amount: String(a.amount), category_id: a.category_id, memo: a.memo ?? "" })}><Pencil /></Button>
-              <Button size="icon" variant="ghost" aria-label="削除" onClick={() => confirm("削除しますか？") && del.mutate(a.id)}><Trash2 /></Button>
+              <Button size="icon" variant="ghost" aria-label="編集" disabled={save.isPending || del.isPending} onClick={() => { save.reset(); setForm({ id: a.id, name: a.name, amount: String(a.amount), category_id: a.category_id, memo: a.memo ?? "" }); }}><Pencil /></Button>
+              <Button size="icon" variant="ghost" aria-label="削除" disabled={del.isPending || save.isPending} onClick={() => confirm("削除しますか？") && del.mutate(a.id, { onSuccess: () => toast.success("削除しました") })}><Trash2 /></Button>
             </li>
           ))}
         </ul>
       )}
 
-      <Dialog open={!!form} onOpenChange={(o) => !o && setForm(null)}>
+      <Dialog open={!!form} onOpenChange={(o) => { if (!o && !save.isPending) setForm(null); }}>
         <DialogContent>
           <DialogHeader><DialogTitle>{form?.id ? "資産を編集" : "資産を追加"}</DialogTitle></DialogHeader>
           {form && (
@@ -70,21 +75,22 @@ function AssetsPage() {
                 save.mutate(form, { onSuccess: () => { setForm(null); toast.success("保存しました"); }, onError: (er) => toast.error(er.message) });
               }}
             >
-              <div className="space-y-1.5"><Label>名称</Label><Input required placeholder="例：〇〇銀行 普通預金" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>名称</Label><Input disabled={save.isPending} required placeholder="例：〇〇銀行 普通預金" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} /></div>
               <div className="space-y-1.5">
                 <Label>カテゴリー</Label>
-                <Select value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
+                <Select disabled={save.isPending} value={form.category_id} onValueChange={(v) => setForm({ ...form, category_id: v })}>
                   <SelectTrigger><SelectValue placeholder="選択" /></SelectTrigger>
                   <SelectContent>{cats.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                 </Select>
               </div>
-              <div className="space-y-1.5"><Label>金額（円）</Label><Input required type="number" min={0} inputMode="numeric" className="num" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
-              <div className="space-y-1.5"><Label>メモ</Label><Textarea value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} /></div>
-              <Button type="submit" className="w-full" disabled={save.isPending}>保存</Button>
+              <div className="space-y-1.5"><Label>金額（円）</Label><Input disabled={save.isPending} required type="number" min={0} inputMode="numeric" className="num" value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} /></div>
+              <div className="space-y-1.5"><Label>メモ</Label><Textarea disabled={save.isPending} value={form.memo} onChange={(e) => setForm({ ...form, memo: e.target.value })} /></div>
+              <ActionError error={save.error} /><Button type="submit" className="w-full" disabled={save.isPending}>{save.isPending ? "保存しています…" : "保存"}</Button>
             </form>
           )}
         </DialogContent>
       </Dialog>
     </div>
+    </DataGate>
   );
 }

@@ -1,5 +1,6 @@
+import { DataGate, ActionError } from "@/components/app/DataState";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -34,8 +35,10 @@ function Section({ title, action, children }: { title: string; action?: React.Re
 }
 
 function Settings() {
-  const { data: p } = useProfile();
-  const { data: sub } = useSubscription();
+  const profileQuery = useProfile();
+  const { data: p } = profileQuery;
+  const subQuery = useSubscription();
+  const { data: sub } = subQuery;
   const qc = useQueryClient();
   const navigate = useNavigate();
   const del = useServerFn(deleteMyAccount);
@@ -43,7 +46,9 @@ function Settings() {
   const checkoutStatus = useServerFn(getCheckoutStatus);
   const [editing, setEditing] = useState(false);
   const [pwOpen, setPwOpen] = useState(false);
-  const [f, setF] = useState({ display_name: "", birth_year: "", monthly_income: "", monthly_expense: "", monthly_investment: "", risk_tolerance: "medium", region: "", notify_reminder: true, notify_goal: true });
+  const dirty = useRef(false);
+  const [f, setDraft] = useState({ display_name: "", birth_year: "", monthly_income: "", monthly_expense: "", monthly_investment: "", risk_tolerance: "medium", region: "", notify_reminder: true, notify_goal: true });
+  const setF = (value: typeof f) => { dirty.current = true; setDraft(value); };
   // Demo plan switching is disabled; premium comes only from a verified Stripe subscription.
   const demoAllowed = false;
   const [pw, setPw] = useState({ current: "", next: "" });
@@ -87,7 +92,7 @@ function Settings() {
   }
 
   useEffect(() => {
-    if (p) setF({
+    if (p && !dirty.current) setDraft({
       display_name: p.display_name ?? "", birth_year: p.birth_year?.toString() ?? "",
       monthly_income: p.monthly_income?.toString() ?? "", monthly_expense: p.monthly_expense?.toString() ?? "",
       monthly_investment: p.monthly_investment?.toString() ?? "", risk_tolerance: p.risk_tolerance ?? "medium", region: p.region ?? "",
@@ -102,16 +107,16 @@ function Settings() {
     monthly_expense: num(f.monthly_expense), monthly_investment: num(f.monthly_investment),
     risk_tolerance: f.risk_tolerance, region: f.region || null, notify_reminder: f.notify_reminder, notify_goal: f.notify_goal,
     updated_at: new Date().toISOString(),
-  }).eq("id", p.id);
+  }).eq("id", p.id).select("id").single();
   }, ["profile"]);
 
-  async function changePw(e: React.FormEvent) {
+  const password = useAction(async () => supabase.auth.updateUser({ password: pw.next, current_password: pw.current } as never), []);
+  function changePw(e: React.FormEvent) {
     e.preventDefault();
-    const { error } = await supabase.auth.updateUser({ password: pw.next, current_password: pw.current } as never);
-    if (error) { toast.error(error.message); return; }
-    toast.success("パスワードを変更しました");
-    setPw({ current: "", next: "" });
-    setPwOpen(false);
+    password.mutate(undefined, { onSuccess: () => {
+      toast.success("パスワードを変更しました");
+      setPw({ current: "", next: "" }); setPwOpen(false);
+    }, onError: (error) => toast.error(error.message) });
   }
 
   async function signOut() {
@@ -134,10 +139,11 @@ function Settings() {
   }
 
   const field = (k: keyof typeof f, label: string, type = "number") => (
-    <div className="space-y-1.5"><Label>{label}</Label><Input type={type} className={type === "number" ? "num" : ""} value={f[k] as string} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
+    <div className="space-y-1.5"><Label>{label}</Label><Input disabled={save.isPending} type={type} className={type === "number" ? "num" : ""} value={f[k] as string} onChange={(e) => setF({ ...f, [k]: e.target.value })} /></div>
   );
 
   return (
+    <DataGate queries={[profileQuery, subQuery]} label="プロフィール・契約情報">
     <div className="space-y-5">
       <PageHeader title="設定" />
       <Section title="プロフィール・家計" action={!editing && <Button size="sm" variant="outline" onClick={() => setEditing(true)}>編集</Button>}>
@@ -148,7 +154,7 @@ function Settings() {
               {field("birth_year", "生まれ年（西暦）")}
               <div className="space-y-1.5">
                 <Label>住んでいる地域</Label>
-                <Select value={f.region} onValueChange={(v) => setF({ ...f, region: v })}>
+                <Select disabled={save.isPending} value={f.region} onValueChange={(v) => setF({ ...f, region: v })}>
                   <SelectTrigger><SelectValue placeholder="都道府県を選択" /></SelectTrigger>
                   <SelectContent>{PREFECTURES.map((r) => <SelectItem key={r} value={r}>{r}</SelectItem>)}</SelectContent>
                 </Select>
@@ -158,25 +164,25 @@ function Settings() {
               {field("monthly_investment", "毎月の投資額（円）")}
               <div className="space-y-1.5">
                 <Label>リスク許容度</Label>
-                <Select value={f.risk_tolerance} onValueChange={(v) => setF({ ...f, risk_tolerance: v })}>
+                <Select disabled={save.isPending} value={f.risk_tolerance} onValueChange={(v) => setF({ ...f, risk_tolerance: v })}>
                   <SelectTrigger><SelectValue /></SelectTrigger>
                   <SelectContent><SelectItem value="low">低い（安定重視）</SelectItem><SelectItem value="medium">普通</SelectItem><SelectItem value="high">高い（成長重視）</SelectItem></SelectContent>
                 </Select>
               </div>
             </div>
             <div className="flex gap-2">
-              <Button onClick={() => save.mutate(undefined, { onSuccess: () => { toast.success("保存しました"); setEditing(false); }, onError: (e) => toast.error(e.message) })}>保存</Button>
-              <Button variant="ghost" onClick={() => { setEditing(false); qc.invalidateQueries({ queryKey: ["profile"] }); }}>キャンセル</Button>
+              <Button disabled={save.isPending} onClick={() => save.mutate(undefined, { onSuccess: () => { dirty.current = false; toast.success("保存しました"); setEditing(false); }, onError: (e) => toast.error(e.message) })}>保存</Button>
+              <Button disabled={save.isPending} variant="ghost" onClick={() => { dirty.current = false; setEditing(false); qc.resetQueries({ queryKey: ["profile"] }); }}>キャンセル</Button>
             </div>
           </>
         ) : (
           <dl className="grid gap-3 text-sm sm:grid-cols-2">
             {([
-              ["表示名", f.display_name], ["生まれ年", f.birth_year && `${f.birth_year}年`], ["住んでいる地域", f.region],
-              ["月収（手取り）", f.monthly_income && `¥${Number(f.monthly_income).toLocaleString("ja-JP")}`],
-              ["月の支出", f.monthly_expense && `¥${Number(f.monthly_expense).toLocaleString("ja-JP")}`],
-              ["毎月の投資額", f.monthly_investment && `¥${Number(f.monthly_investment).toLocaleString("ja-JP")}`],
-              ["リスク許容度", { low: "低い（安定重視）", medium: "普通", high: "高い（成長重視）" }[f.risk_tolerance] ?? f.risk_tolerance],
+              ["表示名", p?.display_name], ["生まれ年", p?.birth_year && `${p.birth_year}年`], ["住んでいる地域", p?.region],
+              ["月収（手取り）", p?.monthly_income != null && `¥${Number(p.monthly_income).toLocaleString("ja-JP")}`],
+              ["月の支出", p?.monthly_expense != null && `¥${Number(p.monthly_expense).toLocaleString("ja-JP")}`],
+              ["毎月の投資額", p?.monthly_investment != null && `¥${Number(p.monthly_investment).toLocaleString("ja-JP")}`],
+              ["リスク許容度", { low: "低い（安定重視）", medium: "普通", high: "高い（成長重視）" }[p?.risk_tolerance ?? "medium"] ?? p?.risk_tolerance],
             ] as const).map(([k, v]) => (
               <div key={k}><dt className="text-xs text-muted-foreground">{k}</dt><dd className="num mt-0.5">{v || "未設定"}</dd></div>
             ))}
@@ -187,19 +193,20 @@ function Settings() {
         )}
       </Section>
 
+      <ActionError error={save.error} />
       <Section title="通知">
-        <div className="flex items-center justify-between"><span className="text-sm">資産入力リマインダー</span><Switch checked={f.notify_reminder} onCheckedChange={(v) => setF({ ...f, notify_reminder: v })} /></div>
-        <div className="flex items-center justify-between"><span className="text-sm">目標達成のお知らせ</span><Switch checked={f.notify_goal} onCheckedChange={(v) => setF({ ...f, notify_goal: v })} /></div>
-        <Button size="sm" variant="outline" onClick={() => save.mutate(undefined, { onSuccess: () => toast.success("通知設定を保存しました"), onError: (e) => toast.error(e.message) })}>通知設定を保存</Button>
+        <div className="flex items-center justify-between"><span className="text-sm">資産入力リマインダー</span><Switch disabled={save.isPending} checked={f.notify_reminder} onCheckedChange={(v) => setF({ ...f, notify_reminder: v })} /></div>
+        <div className="flex items-center justify-between"><span className="text-sm">目標達成のお知らせ</span><Switch disabled={save.isPending} checked={f.notify_goal} onCheckedChange={(v) => setF({ ...f, notify_goal: v })} /></div>
+        <Button size="sm" variant="outline" disabled={save.isPending || editing} onClick={() => save.mutate(undefined, { onSuccess: () => { dirty.current = false; toast.success("通知設定を保存しました"); }, onError: (e) => toast.error(e.message) })}>通知設定を保存</Button>
       </Section>
 
       <Section title="アカウント">
         <div className="text-sm"><span className="text-muted-foreground">メールアドレス：</span>{p?.email}</div>
         {pwOpen ? (
           <form onSubmit={changePw} className="grid gap-3 sm:grid-cols-2">
-            <div className="space-y-1.5"><Label>現在のパスワード</Label><Input type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></div>
-            <div className="space-y-1.5"><Label>新しいパスワード（8文字以上）</Label><Input type="password" minLength={8} required value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></div>
-            <div className="flex gap-2 sm:col-span-2"><Button type="submit">変更を確定</Button><Button type="button" variant="ghost" onClick={() => { setPwOpen(false); setPw({ current: "", next: "" }); }}>キャンセル</Button></div>
+            <div className="space-y-1.5"><Label>現在のパスワード</Label><Input disabled={password.isPending} type="password" value={pw.current} onChange={(e) => setPw({ ...pw, current: e.target.value })} /></div>
+            <div className="space-y-1.5"><Label>新しいパスワード（8文字以上）</Label><Input disabled={password.isPending} type="password" minLength={8} required value={pw.next} onChange={(e) => setPw({ ...pw, next: e.target.value })} /></div>
+            <div className="flex gap-2 sm:col-span-2"><ActionError error={password.error} /><Button type="submit" disabled={password.isPending}>{password.isPending ? "変更しています…" : "変更を確定"}</Button><Button type="button" disabled={password.isPending} variant="ghost" onClick={() => { setPwOpen(false); setPw({ current: "", next: "" }); }}>キャンセル</Button></div>
           </form>
         ) : (
           <Button variant="outline" onClick={() => setPwOpen(true)}>パスワードを変更</Button>
@@ -269,5 +276,6 @@ function Settings() {
         {deletionMessage && <p role="status" className="px-5 py-3 text-sm text-muted-foreground">{deletionMessage}</p>}
       </div>
     </div>
+    </DataGate>
   );
 }

@@ -27,6 +27,10 @@ export const askAdvisor = createServerFn({ method: "POST" })
       supabase.from("goals").select("name, target_amount, deadline, monthly_contribution"),
     ]);
 
+    if (profile.error || assets.error || goals.error || !profile.data || !assets.data || !goals.data) {
+      return { error: "分析に必要なデータを取得できませんでした。通信状況をご確認のうえ、再度お試しください。" };
+    }
+
     const p = profile.data;
     const ctx = {
       age: p?.birth_year ? new Date().getFullYear() - p.birth_year : null,
@@ -61,35 +65,40 @@ export const askAdvisor = createServerFn({ method: "POST" })
     if (res.status === 429) return { error: "混み合っています。しばらくしてからお試しください。" };
     if (res.status === 402) return { error: "AIの利用枠を超えました。" };
     if (!res.ok || !res.body) {
-      console.error("AI gateway", res.status, await res.text());
+      console.error("AI gateway status", res.status);
       return { error: "AIの応答に失敗しました。" };
     }
     // Consume SSE stream and accumulate output text.
     let answer = "";
+    let completed = false;
+    let failed = false;
     const reader = res.body.getReader();
     const dec = new TextDecoder();
     let buf = "";
+    const consume = (line: string) => {
+      if (!line.startsWith("data:")) return;
+      const payload = line.slice(5).trim();
+      if (!payload || payload === "[DONE]") return;
+      try {
+        const ev = JSON.parse(payload) as { type?: string; delta?: string };
+        if (ev.type === "response.output_text.delta" && ev.delta) answer += ev.delta;
+        if (ev.type === "response.completed") completed = true;
+        if (ev.type === "response.failed" || ev.type === "response.incomplete" || ev.type === "error") failed = true;
+      } catch { failed = true; }
+    };
     for (;;) {
       const { done, value } = await reader.read();
       if (done) break;
       buf += dec.decode(value, { stream: true });
       const lines = buf.split("\n");
       buf = lines.pop() ?? "";
-      for (const line of lines) {
-        if (!line.startsWith("data:")) continue;
-        const payload = line.slice(5).trim();
-        if (!payload || payload === "[DONE]") continue;
-        try {
-          const ev = JSON.parse(payload) as { type?: string; delta?: string };
-          if (ev.type === "response.output_text.delta" && ev.delta) answer += ev.delta;
-        } catch {
-          /* ignore partial */
-        }
-      }
+      for (const line of lines) consume(line);
     }
-    if (!answer) return { error: "AIの応答が空でした。" };
+    consume(buf + dec.decode());
+    if (!completed || failed || !answer) return { error: "AIの分析を完了できませんでした。時間をおいて再度お試しください。" };
 
     const { supabaseAdmin } = await import("@/integrations/supabase/client.server");
-    await supabaseAdmin.from("ai_advice_history").insert({ user_id: userId, question: data.question ?? null, answer });
+    const saved = await supabaseAdmin.from("ai_advice_history").insert({ user_id: userId, question: data.question ?? null, answer });
+    if (saved.error) return { error: "分析結果を保存できませんでした。時間をおいて再度お試しください。" };
     return { answer };
   });

@@ -1,5 +1,6 @@
+import { DataGate } from "@/components/app/DataState";
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useServerFn } from "@tanstack/react-start";
 import { useQueryClient } from "@tanstack/react-query";
 import { Sparkles, Loader2 } from "lucide-react";
@@ -26,28 +27,37 @@ function Answer({ text }: { text: string }) {
 function AiPage() {
   const ask = useServerFn(askAdvisor);
   const qc = useQueryClient();
-  const { data: sub } = useSubscription();
-  const { data: hist = [] } = useAiHistory();
+  const subQuery = useSubscription();
+  const { data: sub } = subQuery;
+  const historyQuery = useAiHistory();
+  const { data: hist = [] } = historyQuery;
   const [q, setQ] = useState("");
   const [busy, setBusy] = useState(false);
   const [answer, setAnswer] = useState<string | null>(null);
+  const [requestError, setRequestError] = useState("");
+  const lock = useRef(false);
   const allowed = canUse(sub?.plan ?? "free", "aiAdvice");
 
   async function run(question: string) {
+    if (lock.current) return;
+    lock.current = true;
     setBusy(true);
-    setAnswer(null);
+    setRequestError("");
     try {
       const r = await ask({ data: { question, environment: getStripeEnvironmentSafe() } });
-      if ("error" in r && r.error) toast.error(r.error);
+      if ("error" in r && r.error) { setRequestError(r.error); toast.error(r.error); }
       else if ("answer" in r) { setAnswer(r.answer ?? ""); qc.invalidateQueries({ queryKey: ["ai"] }); }
     } catch {
+      setRequestError("AIの応答を確認できませんでした。入力内容は保持しています。時間をおいて再度お試しください。");
       toast.error("AIの応答に失敗しました");
     } finally {
       setBusy(false);
+      lock.current = false;
     }
   }
 
   return (
+    <DataGate queries={[historyQuery, subQuery]} label="アドバイス履歴・契約情報">
     <div className="space-y-5">
       <PageHeader title="AIアドバイス" sub="登録データをもとに、分析と情報提供を行います" />
       {BETA_ALL_ACCESS && <p className="text-xs text-muted-foreground">ベータ期間中はすべての方がご利用いただけます（将来はプレミアム機能）。</p>}
@@ -63,6 +73,7 @@ function AiPage() {
             <Button type="submit" disabled={busy || !q.trim()} className="sm:self-end">{busy ? <Loader2 className="animate-spin" /> : <Sparkles />}質問</Button>
           </form>
           {busy && <p className="text-sm text-muted-foreground">分析しています…</p>}
+          {requestError && <p role="alert" className="text-sm text-destructive">{requestError}</p>}
           {answer && <div className="rounded-xl bg-muted p-5"><Answer text={answer} /></div>}
         </section>
       )}
@@ -79,5 +90,6 @@ function AiPage() {
       )}
       <p className="text-xs text-muted-foreground">※ AIの回答は情報提供を目的としたもので、特定の投資を推奨するものではありません。</p>
     </div>
+    </DataGate>
   );
 }

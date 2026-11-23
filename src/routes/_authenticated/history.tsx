@@ -1,3 +1,4 @@
+import { DataGate, ActionError } from "@/components/app/DataState";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { Plus, Trash2 } from "lucide-react";
@@ -21,7 +22,8 @@ export const Route = createFileRoute("/_authenticated/history")({
 const GROUP_KEYS = Object.keys(GROUPS);
 
 function HistoryPage() {
-  const { data: hist = [] } = useHistory();
+  const historyQuery = useHistory();
+  const { data: hist = [] } = historyQuery;
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [vals, setVals] = useState<Record<string, string>>({});
@@ -33,17 +35,20 @@ function HistoryPage() {
     const breakdown: Record<string, number> = {};
     for (const k of GROUP_KEYS) { const n = Math.round(Number(vals[k] || 0)); if (n) breakdown[k] = n; }
     const total = Object.values(breakdown).reduce((s, v) => s + v, 0);
-    const { data: u } = await supabase.auth.getUser();
+    const { data: u, error } = await supabase.auth.getUser();
+    if (error || !u.user) throw new Error("auth_required");
     return supabase.from("asset_history").upsert(
-      { user_id: u.user!.id, month: `${date.slice(0, 7)}-01`, recorded_on: date, total, breakdown, source: "manual", updated_at: new Date().toISOString() },
+      { user_id: u.user.id, month: `${date.slice(0, 7)}-01`, recorded_on: date, total, breakdown, source: "manual", updated_at: new Date().toISOString() },
       { onConflict: "user_id,month" },
-    );
+    ).select("id").single();
   }, ["history"]);
-  const del = useAction(async (id: string) => supabase.from("asset_history").delete().eq("id", id), ["history"]);
+  const del = useAction(async (id: string) => supabase.from("asset_history").delete().eq("id", id).select("id").single(), ["history"], "delete");
 
   return (
+    <DataGate queries={[historyQuery]} label="資産履歴">
     <div className="space-y-5">
-      <PageHeader title="資産推移" sub="今月分は資産の登録で自動記録。過去の資産は日付を指定して登録できます" action={<Button onClick={() => { setDate(""); setVals({}); setOpen(true); }}><Plus />過去の資産を登録</Button>} />
+      <PageHeader title="資産推移" sub="今月分は資産の登録で自動記録。過去の資産は日付を指定して登録できます" action={<Button disabled={save.isPending || del.isPending} onClick={() => { save.reset(); setDate(""); setVals({}); setOpen(true); }}><Plus />過去の資産を登録</Button>} />
+      <ActionError error={del.error} />
       {rows.length === 0 ? <Empty>まだ記録がありません。過去の資産を登録すると、これまでの推移を確認できます。</Empty> : (
         <>
           <section className="card-surface h-72 p-5"><TrendArea data={rows.map((r) => ({ label: shortMonth(r.month), total: r.total }))} /></section>
@@ -61,7 +66,7 @@ function HistoryPage() {
                     <div className="num font-semibold">{yen(r.total)}</div>
                     {d !== null && <div className={`num text-xs ${d >= 0 ? "text-positive" : "text-negative"}`}>{signedYen(d)}</div>}
                   </div>
-                  {r.source === "manual" && <Button size="icon" variant="ghost" aria-label="削除" onClick={() => confirm("この記録を削除しますか？") && del.mutate(r.id)}><Trash2 /></Button>}
+                  {r.source === "manual" && <Button size="icon" variant="ghost" aria-label="削除" disabled={del.isPending || save.isPending} onClick={() => confirm("この記録を削除しますか？") && del.mutate(r.id, { onSuccess: () => toast.success("削除しました") })}><Trash2 /></Button>}
                 </li>
               );
             })}
@@ -69,7 +74,7 @@ function HistoryPage() {
         </>
       )}
 
-      <Dialog open={open} onOpenChange={setOpen}>
+      <Dialog open={open} onOpenChange={(o) => { if (!save.isPending) setOpen(o); }}>
         <DialogContent className="max-h-[90vh] overflow-y-auto">
           <DialogHeader><DialogTitle>過去の資産を登録</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={(e) => {
@@ -77,18 +82,19 @@ function HistoryPage() {
             if (!date || date > maxDate) { toast.error("先月以前の日付を指定してください"); return; }
             save.mutate(undefined, { onSuccess: () => { setOpen(false); toast.success("登録しました"); }, onError: (er) => toast.error(er.message) });
           }}>
-            <div className="space-y-1.5"><Label>いつ時点の資産ですか</Label><Input type="date" required max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} /></div>
+            <div className="space-y-1.5"><Label>いつ時点の資産ですか</Label><Input disabled={save.isPending} type="date" required max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} /></div>
             <p className="text-xs text-muted-foreground">同じ月に登録済みの場合は上書きされます。わかる項目だけ入力してください（円）。</p>
             <div className="grid grid-cols-2 gap-3">
               {GROUP_KEYS.map((k) => (
-                <div key={k} className="space-y-1"><Label className="text-xs">{GROUPS[k]!.label}</Label><Input type="number" min={0} inputMode="numeric" className="num" value={vals[k] ?? ""} onChange={(e) => setVals({ ...vals, [k]: e.target.value })} /></div>
+                <div key={k} className="space-y-1"><Label className="text-xs">{GROUPS[k]?.label ?? k}</Label><Input disabled={save.isPending} type="number" min={0} inputMode="numeric" className="num" value={vals[k] ?? ""} onChange={(e) => setVals({ ...vals, [k]: e.target.value })} /></div>
               ))}
             </div>
             <div className="text-sm">合計 <span className="num font-semibold">{yen(GROUP_KEYS.reduce((s, k) => s + Number(vals[k] || 0), 0))}</span></div>
-            <Button type="submit" className="w-full" disabled={save.isPending}>登録</Button>
+            <ActionError error={save.error} /><Button type="submit" className="w-full" disabled={save.isPending}>{save.isPending ? "登録しています…" : "登録"}</Button>
           </form>
         </DialogContent>
       </Dialog>
     </div>
+    </DataGate>
   );
 }

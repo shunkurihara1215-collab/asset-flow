@@ -1,3 +1,4 @@
+import { DataGate } from "@/components/app/DataState";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sparkles } from "lucide-react";
 import { useAssets, allocation } from "@/lib/data";
@@ -10,10 +11,12 @@ export const Route = createFileRoute("/_authenticated/analysis")({
 });
 
 function Analysis() {
-  const { data: assets = [] } = useAssets();
+  const assetsQuery = useAssets();
+  const { data: assets = [] } = assetsQuery;
   const alloc = allocation(assets);
-  if (!alloc.length) return (<><PageHeader title="資産配分" /><Empty>資産を登録すると配分が表示されます。</Empty></>);
+  if (!alloc.length) return (<DataGate queries={[assetsQuery]} label="資産データ"><PageHeader title="資産配分" /><Empty>資産を登録すると配分が表示されます。</Empty></DataGate>);
   return (
+    <DataGate queries={[assetsQuery]} label="資産データ">
     <div className="space-y-5">
       <PageHeader title="資産配分" sub="カテゴリー別の割合" />
       <div className="grid gap-5 lg:grid-cols-2">
@@ -34,5 +37,6 @@ function Analysis() {
         <div className="flex-1"><div className="font-medium">AIに配分を分析してもらう</div><div className="text-xs text-muted-foreground">年齢・目標・リスク許容度をもとにコメントします</div></div>→
       </Link>
     </div>
+    </DataGate>
   );
 }

@@ -1,3 +1,5 @@
+import { useRef } from "react";
+import { actionMessage, checkWriteResult } from "./data-safety";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { getBillingState } from "./billing.functions";
@@ -16,18 +18,21 @@ export const GROUPS: Record<string, { label: string; color: string }> = {
 };
 
 const unwrap = <T,>(r: { data: T | null; error: { message: string } | null }) => {
-  if (r.error) throw new Error(r.error.message);
+  if (r.error) throw r.error;
+  if (r.data === null) throw new Error("read_not_confirmed");
   return r.data as T;
 };
 
 export const useCategories = () =>
   useQuery({
+    retry: false,
     queryKey: ["categories"],
     queryFn: async () => unwrap(await supabase.from("asset_categories").select("*").order("sort_order")),
   });
 
 export const useAssets = () =>
   useQuery({
+    retry: false,
     queryKey: ["assets"],
     queryFn: async () =>
       unwrap(
@@ -40,35 +45,41 @@ export const useAssets = () =>
 
 export const useHistory = () =>
   useQuery({
+    retry: false,
     queryKey: ["history"],
     queryFn: async () => unwrap(await supabase.from("asset_history").select("*").order("month")),
   });
 
 export const useGoals = () =>
   useQuery({
+    retry: false,
     queryKey: ["goals"],
     queryFn: async () => unwrap(await supabase.from("goals").select("*").order("deadline")),
   });
 
 export const useProfile = () =>
   useQuery({
+    retry: false,
     queryKey: ["profile"],
     queryFn: async () => {
-      const { data: u } = await supabase.auth.getUser();
-      const { data: p, error } = await supabase.from("profiles").select("*").eq("id", u.user!.id).maybeSingle();
-      if (error) throw new Error(error.message);
-      return { ...p!, email: u.user?.email ?? "" };
+      const { data: u, error: authError } = await supabase.auth.getUser();
+      if (authError || !u.user) throw new Error("auth_required");
+      const { data: p, error } = await supabase.from("profiles").select("*").eq("id", u.user.id).single();
+      if (error || !p) throw new Error("profile_unavailable");
+      return { ...p, email: u.user.email ?? "" };
     },
   });
 
 export const useSubscription = () =>
   useQuery({
+    retry: false,
     queryKey: ["subscription"],
     queryFn: () => getBillingState(),
   });
 
 export const useIncome = () =>
   useQuery({
+    retry: false,
     queryKey: ["income"],
     queryFn: async () =>
       unwrap(await supabase.from("income_expenses").select("*").order("month", { ascending: false })),
@@ -76,21 +87,31 @@ export const useIncome = () =>
 
 export const useAiHistory = () =>
   useQuery({
+    retry: false,
     queryKey: ["ai"],
     queryFn: async () =>
       unwrap(await supabase.from("ai_advice_history").select("*").order("created_at", { ascending: false }).limit(10)),
   });
 
 /** Generic mutation that invalidates given keys. */
-export function useAction<V>(fn: (v: V) => Promise<unknown>, keys: string[]) {
+export function useAction<V>(fn: (v: V) => Promise<unknown>, keys: string[], kind: "save" | "delete" = "save") {
   const qc = useQueryClient();
-  return useMutation({
+  const locked = useRef(false);
+  const mutation = useMutation({
+    retry: false,
     mutationFn: async (v: V) => {
-      const r = (await fn(v)) as { error?: { message: string } | null } | undefined;
-      if (r && r.error) throw new Error(r.error.message);
+      try { checkWriteResult(await fn(v)); }
+      catch (error) { throw new Error(actionMessage(error, kind)); }
     },
-    onSuccess: () => keys.forEach((k) => qc.invalidateQueries({ queryKey: [k] })),
+    onSuccess: async () => { await Promise.all(keys.map((k) => qc.invalidateQueries({ queryKey: [k] }))); },
+    onSettled: () => { locked.current = false; },
   });
+  const mutate: typeof mutation.mutate = (variables, options) => {
+    if (locked.current) return;
+    locked.current = true;
+    mutation.mutate(variables, options);
+  };
+  return { ...mutation, mutate };
 }
 
 export function allocation(assets: { amount: number; category: { group_key: string } | null }[]) {

@@ -1,3 +1,4 @@
+import { DataGate } from "@/components/app/DataState";
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { Input } from "@/components/ui/input";
@@ -14,20 +15,22 @@ export const Route = createFileRoute("/_authenticated/simulation")({
 });
 
 function Sim() {
-  const { data: assets } = useAssets();
+  const assetsQuery = useAssets();
+  const { data: assets } = assetsQuery;
   const [initial, setInitial] = useState(4_000_000);
   const [monthly, setMonthly] = useState(50_000);
   const [rate, setRate] = useState(5);
   const [years, setYears] = useState(10);
 
   useEffect(() => {
-    if (assets?.length) setInitial(assets.reduce((s, a) => s + Number(a.amount), 0));
-  }, [assets]);
+    if (assetsQuery.isSuccess && assets) setInitial(assets.reduce((s, a) => s + Number(a.amount), 0));
+  }, [assets, assetsQuery.isSuccess]);
 
   const data = useMemo(() => simulate(initial, monthly, rate, years), [initial, monthly, rate, years]);
-  const last = data[data.length - 1]!;
+  const last = data.at(-1) ?? { total: 0, principal: 0, gain: 0 };
 
   return (
+    <DataGate queries={[assetsQuery]} label="資産データ">
     <div className="space-y-5">
       <PageHeader title="将来シミュレーション" />
       <div className="grid gap-5 lg:grid-cols-3">
@@ -51,5 +54,6 @@ function Sim() {
         ※ 本シミュレーションは一定の利回りが続くと仮定した概算であり、将来の運用成果を保証するものではありません。実際の運用では元本割れの可能性があり、税金・手数料は考慮していません。
       </p>
     </div>
+    </DataGate>
   );
 }
