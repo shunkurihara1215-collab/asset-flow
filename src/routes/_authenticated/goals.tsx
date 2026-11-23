@@ -1,3 +1,4 @@
+import { dateLabel, monthLabel } from "@/lib/history";
 import { DataGate, ActionError } from "@/components/app/DataState";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -10,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useAssets, useGoals, useAction, useSubscription } from "@/lib/data";
-import { yen, goalProgress, requiredMonthly, monthsToTarget, monthsBetween } from "@/lib/finance";
+import { yen, goalProgress, goalTiming } from "@/lib/finance";
 import { canUse, FREE_GOAL_LIMIT } from "@/lib/plans";
 import { PageHeader, Empty, Stat } from "@/components/app/AppShell";
 import { createGoal } from "@/lib/goals.functions";
@@ -52,29 +53,26 @@ function Goals() {
           {goals.map((g) => {
             const target = Number(g.target_amount);
             const p = goalProgress(current, target);
-            const months = Math.max(0, monthsBetween(new Date(), new Date(g.deadline)));
-            const need = requiredMonthly(current, target, months, Number(g.expected_return));
-            const eta = monthsToTarget(current, target, Number(g.monthly_contribution), Number(g.expected_return));
-            const onTrack = eta !== null && eta <= months;
+            const timing = goalTiming(current, target, g.deadline, Number(g.monthly_contribution), Number(g.expected_return));
+            const { months, need, eta, onTrack } = timing;
             return (
               <section key={g.id} className="card-surface p-5">
                 <div className="flex items-start justify-between">
                   <div>
                     <h2 className="font-semibold">{g.name}</h2>
-                    <p className="text-xs text-muted-foreground">期限 {new Date(g.deadline).toLocaleDateString("ja-JP")}・残り{Math.floor(months / 12)}年{months % 12}ヶ月</p>
+                    <p className="text-xs text-muted-foreground">期限 {dateLabel(g.deadline)}・{timing.status === "achieved" ? "達成済み" : timing.status === "expired" ? "期限を過ぎています" : months === null ? "計算データが不足しています" : `残り${Math.floor(months / 12)}年${months % 12}ヶ月（今月を含む）`}</p>
                   </div>
                   <Button size="icon" variant="ghost" aria-label="削除" disabled={del.isPending || add.isPending} onClick={() => confirm("削除しますか？") && del.mutate(g.id, { onSuccess: () => toast.success("削除しました") })}><Trash2 /></Button>
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                  <Stat k="目標金額" v={yen(target)} />
-                  <Stat k="達成率" v={`${p.rate.toFixed(0)}%`} accent />
-                  <Stat k="残り金額" v={yen(p.remaining)} />
-                  <Stat k="毎月必要な積立" v={yen(need)} />
+                  <Stat k="目標金額" v={Number.isFinite(target) && target > 0 ? yen(target) : "未設定"} />
+                  <Stat k="達成率" v={timing.status === "unavailable" ? "算出できません" : `${p.rate.toFixed(0)}%`} accent />
+                  <Stat k="残り金額" v={timing.status === "unavailable" ? "算出できません" : yen(p.remaining)} />
+                  <Stat k="毎月必要な積立" v={need === null ? "算出できません" : yen(Math.ceil(need))} />
                 </div>
-                <Progress value={p.rate} className="mt-4 h-2" />
+                {timing.status !== "unavailable" && <Progress value={p.rate} className="mt-4 h-2" />}
                 <p className={`mt-3 text-sm ${onTrack ? "text-positive" : "text-muted-foreground"}`}>
-                  毎月{yen(Number(g.monthly_contribution))}・年{Number(g.expected_return)}%の場合：
-                  {eta === null ? "達成の見込みが立ちません" : eta === 0 ? "達成済みです" : `約${Math.floor(eta / 12)}年${eta % 12}ヶ月で達成見込み${onTrack ? "（期限内）" : "（期限超過）"}`}
+                  {timing.status === "achieved" ? "目標を達成しました" : timing.status === "unavailable" ? "計算に必要なデータが不足しています" : <>毎月{yen(Number(g.monthly_contribution))}・年{Number(g.expected_return)}%の場合：{eta === null || !timing.etaMonth ? "達成の見込みが立ちません" : `${monthLabel(timing.etaMonth)}に達成見込み（${eta}回の積立）${onTrack ? "（期限内）" : "（期限超過）"}`}</>}
                 </p>
               </section>
             );

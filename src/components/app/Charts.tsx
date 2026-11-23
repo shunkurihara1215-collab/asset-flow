@@ -18,7 +18,7 @@ export function Donut({ data }: { data: { label: string; value: number; color: s
 
 const short = (v: number) => (v >= 1e8 ? `${(v / 1e8).toFixed(1)}億` : v >= 1e4 ? `${Math.round(v / 1e4)}万` : `${v}`);
 
-export function TrendArea({ data }: { data: { label: string; total: number }[] }) {
+export function TrendArea({ data }: { data: { label: string; total: number | null }[] }) {
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={data} margin={{ left: 0, right: 8, top: 8, bottom: 0 }}>
@@ -32,7 +32,7 @@ export function TrendArea({ data }: { data: { label: string; total: number }[] }
         <XAxis dataKey="label" tickLine={false} axisLine={false} fontSize={11} stroke="var(--muted-foreground)" />
         <YAxis tickFormatter={short} tickLine={false} axisLine={false} fontSize={11} width={44} stroke="var(--muted-foreground)" />
         <Tooltip formatter={(v: number) => yen(v)} />
-        <Area type="monotone" dataKey="total" name="総資産" stroke="var(--primary)" strokeWidth={2} fill="url(#tg)" />
+        <Area type="linear" connectNulls={false} isAnimationActive={false} dot={{ r: 3 }} dataKey="total" name="総資産" stroke="var(--primary)" strokeWidth={2} fill="url(#tg)" />
       </AreaChart>
     </ResponsiveContainer>
   );

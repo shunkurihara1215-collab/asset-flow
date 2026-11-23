@@ -1,3 +1,4 @@
+import { timestampLabel } from "@/lib/history";
 import { DataGate } from "@/components/app/DataState";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useRef, useState } from "react";
@@ -82,7 +83,7 @@ function AiPage() {
           <h2 className="font-semibold">これまでのアドバイス</h2>
           {hist.map((h) => (
             <details key={h.id} className="card-surface p-4">
-              <summary className="cursor-pointer text-sm"><span className="text-muted-foreground">{new Date(h.created_at).toLocaleDateString("ja-JP")}</span>　{h.question ?? "総合分析"}</summary>
+              <summary className="cursor-pointer text-sm"><span className="text-muted-foreground">{timestampLabel(h.created_at)}</span>　{h.question ?? "総合分析"}</summary>
               <div className="mt-3"><Answer text={h.answer} /></div>
             </details>
           ))}

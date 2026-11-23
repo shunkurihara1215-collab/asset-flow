@@ -1,3 +1,4 @@
+import { timestampLabel } from "@/lib/history";
 import { DataGate, ActionError } from "@/components/app/DataState";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
@@ -53,7 +54,7 @@ function AssetsPage() {
             <li key={a.id} className="flex items-center gap-3 px-4 py-3.5">
               <div className="min-w-0 flex-1">
                 <div className="truncate font-medium">{a.name}</div>
-                <div className="text-xs text-muted-foreground">{a.category?.name} ・ 更新 {new Date(a.updated_at).toLocaleDateString("ja-JP")}</div>
+                <div className="text-xs text-muted-foreground">{a.category?.name} ・ 更新 {timestampLabel(a.updated_at)}</div>
               </div>
               <div className="num text-right font-semibold">{yen(Number(a.amount))}</div>
               <Button size="icon" variant="ghost" aria-label="編集" disabled={save.isPending || del.isPending} onClick={() => { save.reset(); setForm({ id: a.id, name: a.name, amount: String(a.amount), category_id: a.category_id, memo: a.memo ?? "" }); }}><Pencil /></Button>

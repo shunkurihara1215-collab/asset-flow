@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { useHistory, useAction, GROUPS } from "@/lib/data";
 import { yen, signedYen } from "@/lib/finance";
-import { monthLabel, shortMonth } from "@/lib/history";
+import { monthLabel, monthlySeries, previousMonthEnd, isPastMonthDate, dateLabel, compareMonths, uniqueHistory } from "@/lib/history";
 import { TrendArea } from "@/components/app/Charts";
 import { PageHeader, Empty } from "@/components/app/AppShell";
 
@@ -27,9 +27,11 @@ function HistoryPage() {
   const [open, setOpen] = useState(false);
   const [date, setDate] = useState("");
   const [vals, setVals] = useState<Record<string, string>>({});
-  const rows = hist.map((h) => ({ month: h.month, total: Number(h.total), id: h.id, source: h.source, on: h.recorded_on }));
+  const rawRows = hist.map((h) => ({ month: h.month, total: Number(h.total), id: h.id, source: h.source, on: h.recorded_on }));
   const now = new Date();
-  const maxDate = new Date(now.getFullYear(), now.getMonth(), 0).toLocaleDateString("sv-SE");
+  const rows = uniqueHistory(rawRows);
+  const series = monthlySeries(rawRows, null, now);
+  const maxDate = previousMonthEnd(now);
 
   const save = useAction(async () => {
     const breakdown: Record<string, number> = {};
@@ -51,20 +53,22 @@ function HistoryPage() {
       <ActionError error={del.error} />
       {rows.length === 0 ? <Empty>まだ記録がありません。過去の資産を登録すると、これまでの推移を確認できます。</Empty> : (
         <>
-          <section className="card-surface h-72 p-5"><TrendArea data={rows.map((r) => ({ label: shortMonth(r.month), total: r.total }))} /></section>
+          <section className="card-surface h-72 p-5"><TrendArea data={series} /></section>
           <ul className="card-surface divide-y">
-            {[...rows].reverse().map((r, i, arr) => {
-              const prev = arr[i + 1];
-              const d = prev ? r.total - prev.total : null;
+            {[...rows].reverse().map((r) => {
+              const comparison = compareMonths(rawRows, r.total, r.month.slice(0, 7), 1);
+              const d = comparison.amount;
               return (
                 <li key={r.month} className="flex items-center gap-3 px-5 py-4">
                   <div className="flex-1">
                     <div className="text-sm">{monthLabel(r.month)}</div>
-                    {r.source === "manual" && r.on && <div className="text-xs text-muted-foreground">{new Date(r.on).toLocaleDateString("ja-JP")}時点・手動登録</div>}
+                    {r.source === "auto" && <div className="text-xs text-muted-foreground">自動記録・登録済み資産</div>}
+                    {r.source === "manual" && r.on && <div className="text-xs text-muted-foreground">{dateLabel(r.on)}時点・手動登録</div>}
                   </div>
                   <div className="text-right">
                     <div className="num font-semibold">{yen(r.total)}</div>
-                    {d !== null && <div className={`num text-xs ${d >= 0 ? "text-positive" : "text-negative"}`}>{signedYen(d)}</div>}
+                    <div className="text-xs text-muted-foreground">{monthLabel(comparison.targetMonth)}比</div>
+                    {d === null ? <div className="text-xs text-muted-foreground">比較データがありません</div> : <div className={`num text-xs ${d >= 0 ? "text-positive" : "text-negative"}`}>{signedYen(d)}{comparison.rate === null ? "（増減率なし）" : `（${comparison.rate >= 0 ? "+" : ""}${comparison.rate.toFixed(1)}%）`}</div>}
                   </div>
                   {r.source === "manual" && <Button size="icon" variant="ghost" aria-label="削除" disabled={del.isPending || save.isPending} onClick={() => confirm("この記録を削除しますか？") && del.mutate(r.id, { onSuccess: () => toast.success("削除しました") })}><Trash2 /></Button>}
                 </li>
@@ -79,7 +83,7 @@ function HistoryPage() {
           <DialogHeader><DialogTitle>過去の資産を登録</DialogTitle></DialogHeader>
           <form className="space-y-4" onSubmit={(e) => {
             e.preventDefault();
-            if (!date || date > maxDate) { toast.error("先月以前の日付を指定してください"); return; }
+            if (!isPastMonthDate(date, now)) { toast.error("先月以前の日付を指定してください"); return; }
             save.mutate(undefined, { onSuccess: () => { setOpen(false); toast.success("登録しました"); }, onError: (er) => toast.error(er.message) });
           }}>
             <div className="space-y-1.5"><Label>いつ時点の資産ですか</Label><Input disabled={save.isPending} type="date" required max={maxDate} value={date} onChange={(e) => setDate(e.target.value)} /></div>

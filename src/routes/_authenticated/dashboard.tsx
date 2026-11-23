@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { useAssets, useGoals, useHistory, useProfile, allocation } from "@/lib/data";
 import { yen, signedYen, goalProgress } from "@/lib/finance";
-import { diffVsMonthsAgo, filterRange, shortMonth } from "@/lib/history";
+import { compareMonths, tokyoMonth, monthLabel, monthlySeries, latestRecordComparison } from "@/lib/history";
 import { Donut, Legend, TrendArea } from "@/components/app/Charts";
 import { Empty, Stat } from "@/components/app/AppShell";
 
@@ -20,19 +20,19 @@ const RANGES = [
   { k: "1M", m: 1 }, { k: "3M", m: 3 }, { k: "6M", m: 6 }, { k: "1Y", m: 12 }, { k: "全期間", m: null },
 ] as const;
 
-function Delta({ label, v }: { label: string; v: number | null }) {
-  const up = (v ?? 0) >= 0;
+function Delta({ label, comparison }: { label: string; comparison: { targetMonth: string; amount: number | null; rate: number | null } }) {
+  const { amount, rate, targetMonth } = comparison;
+  const up = (amount ?? 0) >= 0;
   return (
-    <div>
+    <div className="min-w-0">
       <div className="text-xs opacity-70">{label}</div>
-      {v === null ? (
-        <div className="num mt-0.5 text-base opacity-60">—</div>
-      ) : (
-        <div className={`num mt-0.5 flex items-center gap-0.5 text-base font-medium ${up ? "text-gold" : "text-negative"}`}>
-          {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-          {signedYen(v)}
+      <div className="mt-1 text-xs opacity-70">{targetMonth ? `${monthLabel(targetMonth)}との比較` : "記録なし"}</div>
+      {amount === null ? <div className="mt-1 text-xs opacity-70">比較データがありません</div> : <>
+        <div className={`num mt-1 flex flex-wrap items-center gap-0.5 text-base font-medium ${up ? "text-gold" : "text-negative"}`}>
+          {up ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}{signedYen(amount)}
         </div>
-      )}
+        <div className="num mt-0.5 text-xs opacity-70">{rate === null ? "増減率：算出できません（比較元0円）" : `${rate >= 0 ? "+" : ""}${rate.toFixed(1)}%`}</div>
+      </>}
     </div>
   );
 }
@@ -50,15 +50,15 @@ function Dashboard() {
 
   const total = assets.reduce((s, a) => s + Number(a.amount), 0);
   const rows = hist.map((h) => ({ month: h.month, total: Number(h.total) }));
-  const nowKey = new Date().toISOString().slice(0, 7);
-  const prevRows = rows.filter((r) => r.month.slice(0, 7) < nowKey);
-  const lastInput = prevRows.length ? total - (prevRows.at(-1)?.total ?? total) : null;
+  const now = new Date();
+  const nowKey = tokyoMonth(now);
+  const lastComparison = latestRecordComparison(rows, total, now);
   const alloc = allocation(assets);
   const rangeM = (RANGES.find((r) => r.k === range)?.m ?? null);
-  const trend = filterRange(rows, rangeM).map((r) => ({ label: shortMonth(r.month), total: r.total }));
+  const trend = monthlySeries(rows, rangeM, now);
   const goal = goals[0];
   const insight = buildInsight({
-    age: profile?.birth_year ? new Date().getFullYear() - profile.birth_year : null,
+    age: profile?.birth_year ? Number(nowKey.slice(0, 4)) - profile.birth_year : null,
     region: profile?.region ?? null,
     total,
     cash: alloc.find((a) => a.key === "cash")?.value ?? 0,
@@ -73,12 +73,12 @@ function Dashboard() {
       <p className="text-sm text-muted-foreground">{profile?.display_name ? `こんにちは、${profile.display_name}さん` : "こんにちは"}</p>
 
       <section className="bg-hero rounded-3xl p-6 text-primary-foreground sm:p-8">
-        <div className="text-sm opacity-70">総資産</div>
+        <div className="text-sm opacity-70">総資産</div><div className="mt-1 text-xs opacity-70">{monthLabel(nowKey)}・登録済み資産の現在額</div>
         <div className="num mt-1 text-4xl font-semibold sm:text-6xl">{yen(total)}</div>
-        <div className="mt-5 grid grid-cols-3 gap-3 border-t border-primary-foreground/15 pt-5">
-          <Delta label="前月比" v={diffVsMonthsAgo(rows, total, 1)} />
-          <Delta label="前年比" v={diffVsMonthsAgo(rows, total, 12)} />
-          <Delta label="前回記録比" v={lastInput} />
+        <div className="mt-5 grid gap-4 sm:grid-cols-3 border-t border-primary-foreground/15 pt-5">
+          <Delta label="前月比" comparison={compareMonths(rows, total, nowKey, 1)} />
+          <Delta label="前年同月比" comparison={compareMonths(rows, total, nowKey, 12)} />
+          <Delta label="前回記録比" comparison={lastComparison} />
         </div>
       </section>
 
@@ -104,7 +104,7 @@ function Dashboard() {
             <h2 className="font-semibold">資産推移</h2>
             <div className="flex gap-1 rounded-lg bg-muted p-1">
               {RANGES.map((r) => (
-                <button key={r.k} onClick={() => setRange(r.k)} className={`rounded-md px-2 py-1 text-xs ${range === r.k ? "bg-card font-medium shadow-sm" : "text-muted-foreground"}`}>{r.k}</button>
+                <Button variant="ghost" size="sm" key={r.k} onClick={() => setRange(r.k)} className={`rounded-md px-2 py-1 text-xs ${range === r.k ? "bg-card font-medium shadow-sm" : "text-muted-foreground"}`}>{r.k}</Button>
               ))}
             </div>
           </div>

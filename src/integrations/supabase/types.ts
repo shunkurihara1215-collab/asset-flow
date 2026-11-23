@@ -505,6 +505,9 @@ export type Database = {
         }
         Returns: string
       }
+      ensure_current_month_asset_history:
+        | { Args: never; Returns: number }
+        | { Args: { p_user_id: string }; Returns: number }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
