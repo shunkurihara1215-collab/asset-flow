@@ -2,7 +2,7 @@ import type { StripeEnv } from "./stripe.server";
 import { createStripeClient } from "./stripe.server";
 import { cancelBeforeDelete, confirmCancellations } from "./billing-lifecycle";
 
-const USER_TABLES = ["assets", "asset_history", "goals", "income_expenses", "subscriptions", "ai_advice_history", "notifications", "inquiries", "asset_categories", "user_roles"] as const;
+const USER_TABLES = ["assets", "asset_history", "goals", "income_expenses", "subscriptions", "ai_usage_requests", "ai_advice_history", "notifications", "inquiries", "asset_categories", "user_roles"] as const;
 
 export async function performAccountDeletion(userId: string, environments: StripeEnv[]) {
   const { supabaseAdmin } = await import("@/integrations/supabase/client.server");

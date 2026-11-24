@@ -6,7 +6,7 @@ export type Feature = "basic" | "multiGoals" | "aiAdvice" | "advancedSimulation"
 const FEATURE_PLAN: Record<Feature, Plan> = {
   basic: "free",
   multiGoals: "premium",
-  aiAdvice: "premium",
+  aiAdvice: "free",
   advancedSimulation: "premium",
   advancedAnalysis: "premium",
 };

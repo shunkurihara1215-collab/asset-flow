@@ -59,6 +59,42 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_usage_requests: {
+        Row: {
+          answer: string | null
+          created_at: string
+          error_message: string | null
+          finished_at: string | null
+          month: string
+          request_hash: string
+          request_id: string
+          status: string
+          user_id: string
+        }
+        Insert: {
+          answer?: string | null
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          month: string
+          request_hash: string
+          request_id: string
+          status?: string
+          user_id: string
+        }
+        Update: {
+          answer?: string | null
+          created_at?: string
+          error_message?: string | null
+          finished_at?: string | null
+          month?: string
+          request_hash?: string
+          request_id?: string
+          status?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       asset_categories: {
         Row: {
           created_at: string
@@ -508,6 +544,16 @@ export type Database = {
       ensure_current_month_asset_history:
         | { Args: never; Returns: number }
         | { Args: { p_user_id: string }; Returns: number }
+      finish_ai_request: {
+        Args: {
+          p_answer: string
+          p_error: string
+          p_question: string
+          p_request_id: string
+          p_user_id: string
+        }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -523,6 +569,15 @@ export type Database = {
           p_event_type: string
         }
         Returns: undefined
+      }
+      reserve_ai_request: {
+        Args: {
+          p_limit: number
+          p_request_hash: string
+          p_request_id: string
+          p_user_id: string
+        }
+        Returns: Json
       }
     }
     Enums: {

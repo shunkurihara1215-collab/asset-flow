@@ -92,6 +92,27 @@
       "when": 1795427363993,
       "tag": "0012_scope_monthly_history_verification",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795489355067,
+      "tag": "0013_ai_monthly_quota",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795489500690,
+      "tag": "0014_ai_completion_empty_values",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795489653186,
+      "tag": "0015_ai_usage_restrict_writes",
+      "breakpoints": true
     }
   ]
 }

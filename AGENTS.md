@@ -10,6 +10,7 @@
 <!-- LOVABLE:END -->
 
 ## Architecture rules
+- AI quota uses service-only PostgreSQL reservation/completion functions with a per-user lock and durable request IDs; API-start reservations (including failures/unknown outcomes) consume the JST monthly quota, never auto-expire, and completion saves history atomically. Why: parallel/replayed requests cannot double-call, exceed quota, or invent a saved answer; pre-API validation/read failures consume no quota.
 - Data read gates hide unverified balances on loading/error (including stale cache); writes confirm affected rows and use a synchronous per-action lock plus safe persistent errors before invalidating shared queries. Why: failed reads/writes must never resemble zero balances or saved/deleted data.
 - Pure finance/date math lives in `src/lib/finance.ts` and `src/lib/history.ts` (unit tested); UI only calls these. Why: keep logic testable and reusable.
 - Client data access uses the browser Supabase client with RLS via hooks in `src/lib/data.ts`; privileged or secret-requiring work (AI, account deletion) goes in `*.functions.ts` server functions with `requireSupabaseAuth`. Why: per-user isolation enforced in the database.
